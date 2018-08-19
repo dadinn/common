@@ -1,5 +1,8 @@
 (define-module (common utils)
-  #:export (get-lastrun write-lastrun getopt-lastrun usage println block-device? root-user? system->string* system->devnull*)
+  #:export
+  (get-lastrun write-lastrun getopt-lastrun usage
+   println block-device? root-user? which
+   system->string* system->devnull*)
   #:use-module ((srfi srfi-1) #:prefix srfi-1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
@@ -8,6 +11,18 @@
   #:use-module ((ice-9 rdelim) #:prefix rdelim:)
   #:use-module ((ice-9 regex) #:prefix regex:)
   #:use-module ((ice-9 popen) #:prefix popen:))
+
+(define (which* acc args)
+  (if (not (null? args))
+      (let ((curr (car args)))
+	(if (zero? (system* "which" curr))
+	    (which* acc (cdr args))
+	    (which* (cons curr acc) (cdr args))))
+      acc))
+
+(define* (which #:rest args)
+  (with-output-to-file "/dev/null"
+    (lambda () (which* #nil args))))
 
 (define (block-device? path)
   (and (file-exists? path)
