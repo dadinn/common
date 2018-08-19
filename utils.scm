@@ -15,7 +15,7 @@
 (define (which acc args)
   (if (not (null? args))
       (let ((curr (car args)))
-	(if (zero? (system* "which" curr))
+	(if (zero? (system->devnull* "which" curr))
 	    (which acc (cdr args))
 	    (which (cons curr acc) (cdr args))))
       acc))
@@ -33,7 +33,7 @@
 	 (id-match (regex:string-match "[0-9]+" id-res))
 	 (id-match (regex:match:substring id-match 0))
 	 (id (string->number id-match)))
-    (eqv? 0 id)))
+    (zero? id)))
 
 (define* (println #:rest args)
   (display (string-join args " "))
