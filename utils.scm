@@ -1,7 +1,7 @@
 (define-module (common utils)
   #:export
   (get-lastrun write-lastrun getopt-lastrun usage
-   println block-device? root-user? which*
+   println block-device? root-user? which* path
    system->string* system->devnull*)
   #:use-module ((srfi srfi-1) #:prefix srfi-1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
@@ -23,6 +23,9 @@
 (define* (which* #:rest args)
   (with-output-to-file "/dev/null"
     (lambda () (which #nil args))))
+
+(define* (path head #:rest tail)
+  (string-join (cons head tail) "/"))
 
 (define (block-device? path)
   (and (file-exists? path)
