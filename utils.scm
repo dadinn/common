@@ -100,7 +100,8 @@
 	      (value (getopt:option-ref options long-name default)))
 	 (if value (hash-set! result long-name value))))
      #nil options-spec)
-    result))
+    (let ((rest (getopt:option-ref options '() #f)))
+      (if rest (hash-set! result '() rest)) result)))
 
 (define (write-lastrun path options)
   (let ((lrfile (open-output-file ".lastrun")))
