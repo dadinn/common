@@ -1,8 +1,9 @@
 (define-module (common utils)
   #:export
-  (read-lastrun write-lastrun getopt-lastrun usage
-   println block-device? root-user? which* path
-   system->string* system->devnull*)
+  (read-lastrun
+   write-lastrun getopt-lastrun usage
+   println block-device? directory? root-user?
+   which* path system->string* system->devnull*)
   #:use-module ((srfi srfi-1) #:prefix srfi-1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
@@ -30,6 +31,10 @@
 (define (block-device? path)
   (and (file-exists? path)
        (eq? 'block-special (stat:type (stat path)))))
+
+(define (directory? path)
+  (and (file-exists? path)
+       (eq? 'directory (stat:type (stat path)))))
 
 (define (root-user?)
   (let* ((id-res (system->string* "id" "-u"))
