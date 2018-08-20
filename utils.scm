@@ -1,6 +1,6 @@
 (define-module (common utils)
   #:export
-  (get-lastrun write-lastrun getopt-lastrun usage
+  (read-lastrun write-lastrun getopt-lastrun usage
    println block-device? root-user? which* path
    system->string* system->devnull*)
   #:use-module ((srfi srfi-1) #:prefix srfi-1:)
@@ -79,7 +79,7 @@
       (conform-props (cdr kv))))
    spec))
 
-(define (get-lastrun path)
+(define (read-lastrun path)
   (if (file-exists? path)
       (let* ((lr-file (open-input-file path))
 	     (lr-alist
