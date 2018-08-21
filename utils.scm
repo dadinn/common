@@ -1,6 +1,6 @@
 (define-module (common utils)
   #:export
-  (read-lastrun
+  (read-lastrun parse-pairs
    write-lastrun getopt-lastrun usage
    println block-device? directory? root-user?
    which* path system->string* system->devnull*)
@@ -151,3 +151,7 @@
 	     (if (or lastrun default) " (default)" "")))))
     specs)
    "\n\n"))
+
+(define (parse-pairs pair-list)
+  (map (lambda (pair) (string-split pair #\:))
+       (string-split pair-list #\,)))
