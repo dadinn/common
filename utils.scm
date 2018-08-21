@@ -113,7 +113,11 @@
 
 (define (write-lastrun path options)
   (let ((lrfile (open-output-file ".lastrun")))
-    (pp:pretty-print (hash-map->list list options) lrfile)
+    (pp:pretty-print
+     (filter
+      (lambda (entry)
+	(not (equal? '() (car entry))))
+      (hash-map->list list options)) lrfile)
     (close lrfile)))
 
 (define (usage specs lastrun)
