@@ -1,7 +1,7 @@
 (define-module (common utils)
   #:export
   (read-lastrun parse-pairs
-   write-lastrun getopt-lastrun usage
+   write-lastrun write-lastrun-vars getopt-lastrun usage
    println block-device? directory? root-user?
    which* path system->string* system->devnull*)
   #:use-module ((srfi srfi-1) #:prefix srfi-1:)
@@ -119,6 +119,21 @@
 	(not (equal? '() (car entry))))
       (hash-map->list list options)) lrfile)
     (close lrfile)))
+
+(define (write-lastrun-vars path options)
+  (with-output-to-file path
+    (lambda ()
+      (map
+       (lambda (entry)
+	 (display
+	  (string-append
+	   (i18n:string-locale-upcase(symbol->string (car entry)))
+	   "=" (cadr entry)))
+	 (newline))
+       (filter
+	(lambda (entry)
+	  (not (equal? '() (car entry))))
+	(hash-map->list list options))))))
 
 (define (usage specs lastrun)
   (string-join
