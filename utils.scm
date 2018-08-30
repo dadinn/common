@@ -98,8 +98,8 @@
 (define* (getopt-lastrun args options-spec #:optional lastrun-map)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
 	 (result (make-hash-table (length options-spec))))
-    (srfi-1:fold
-     (lambda (spec noop!)
+    (map
+     (lambda (spec)
        (let* ((long-name (car spec))
 	      (props (cdr spec))
 	      (default (assoc-ref props 'default))
@@ -107,7 +107,7 @@
 	      (default (hash-ref lastrun-map long-name default))
 	      (value (getopt:option-ref options long-name default)))
 	 (if value (hash-set! result long-name value))))
-     #nil options-spec)
+     options-spec)
     (let ((rest (getopt:option-ref options '() #f)))
       (if rest (hash-set! result '() rest)) result)))
 
