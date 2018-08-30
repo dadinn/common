@@ -97,7 +97,8 @@
 
 (define* (getopt-lastrun args options-spec #:optional lastrun-map)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
-	 (result (make-hash-table (length options-spec))))
+	 (result (make-hash-table (length options-spec)))
+	 (varargs (getopt:option-ref options '() #f)))
     (map
      (lambda (spec)
        (let* ((long-name (car spec))
@@ -108,8 +109,9 @@
 	      (value (getopt:option-ref options long-name default)))
 	 (if value (hash-set! result long-name value))))
      options-spec)
-    (let ((rest (getopt:option-ref options '() #f)))
-      (if rest (hash-set! result '() rest)) result)))
+    (when varargs
+      (hash-set! result '() varargs))
+    result))
 
 (define (write-lastrun path options)
   (let ((lrfile (open-output-file ".lastrun")))
