@@ -114,7 +114,7 @@
     result))
 
 (define (write-lastrun path options)
-  (let ((lrfile (open-output-file ".lastrun")))
+  (let ((lrfile (open-output-file path)))
     (pp:pretty-print
      (filter
       (lambda (entry)
