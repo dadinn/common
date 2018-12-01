@@ -13,8 +13,8 @@
     (close rdr)
     res))
 
-(define (install-deps-zfs)
-  (when (not (file-exists? ".deps_zfs"))
+(define (install-deps-zfs lockfile-path)
+  (when (not (file-exists? lockfile-path))
     (cond
      ((file-exists? "/etc/debian_version")
       (let ((release (read-debian-version)))
@@ -42,5 +42,5 @@
     (when (not (zero? (system* "modprobe" "zfs")))
       (error "ZFS kernel modules are missing!"))
     (utils:println "ZFS kernel modules are loaded!")
-    (with-output-to-file ".deps_zfs"
+    (with-output-to-file lockfile-path
       (lambda () (display "")))))
