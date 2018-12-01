@@ -1,4 +1,4 @@
-(define-module (common zfs)
+(define-module (common deps)
   #:export (install-deps-zfs)
   #:use-module ((common utils) #:prefix utils:)
   #:use-module ((ice-9 rdelim) #:prefix rdelim:)
