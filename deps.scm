@@ -1,5 +1,5 @@
 (define-module (common deps)
-  #:export (install-deps-zfs)
+  #:export (install-deps-base install-deps-zfs)
   #:use-module ((common utils) #:prefix utils:)
   #:use-module ((ice-9 rdelim) #:prefix rdelim:)
   #:use-module ((ice-9 regex) #:prefix regex:))
@@ -12,6 +12,19 @@
 	 (res (string->number res)))
     (close rdr)
     res))
+
+(define (install-deps-base lockfile-path)
+  (when (not (file-exists? lockfile-path))
+    (let ((missing (utils:which* "sgdisk" "partprobe" "cryptsetup" "pvcreate" "vgcreate" "lvcreate")))
+      (if (not (null? missing))
+	  (if (file-exists? "/etc/debian_version")
+	      (begin
+		(display "Installing necessary packages...")
+		(system "apt update")
+		(system "apt install -y gdisk parted cryptsetup lvm2"))
+	      (error "Necessary binaries are missing" missing))))
+    (with-output-to-file lockfile-path
+      (lambda () (display "")))))
 
 (define (install-deps-zfs lockfile-path)
   (when (not (file-exists? lockfile-path))
