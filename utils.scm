@@ -44,6 +44,7 @@
     (zero? id)))
 
 (define* (println #:rest args)
+  (newline)
   (display (string-join args " "))
   (newline))
 
