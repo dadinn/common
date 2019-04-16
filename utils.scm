@@ -96,7 +96,7 @@
 	(hash:alist->hash-table lr-alist))
       (make-hash-table 0)))
 
-(define* (getopt-lastrun args options-spec #:optional lastrun-map)
+(define* (getopt-lastrun args options-spec #:optional defaults)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
 	 (result (make-hash-table (length options-spec)))
 	 (varargs (getopt:option-ref options '() #f)))
@@ -106,7 +106,7 @@
 	      (props (cdr spec))
 	      (default (assoc-ref props 'default))
 	      (default (and default (car default)))
-	      (default (hash-ref lastrun-map long-name default))
+	      (default (hash-ref defaults long-name default))
 	      (value (getopt:option-ref options long-name default)))
 	 (if value (hash-set! result long-name value))))
      options-spec)
