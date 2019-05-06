@@ -1,7 +1,7 @@
 (define-module (common utils)
   #:export
   (read-lastrun parse-pairs
-   write-lastrun write-lastrun-vars getopt-lastrun usage
+   write-lastrun write-lastrun-vars getopt-extra usage
    println block-device? directory? root-user?
    which* path system->string* system->devnull*)
   #:use-module ((srfi srfi-1) #:prefix srfi-1:)
@@ -96,7 +96,7 @@
 	(hash:alist->hash-table lr-alist))
       (make-hash-table 0)))
 
-(define* (getopt-lastrun args options-spec #:optional defaults)
+(define* (getopt-extra args options-spec #:optional defaults)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
 	 (result (make-hash-table (length options-spec)))
 	 (varargs (getopt:option-ref options '() #f)))
