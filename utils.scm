@@ -3,6 +3,7 @@
   (read-lastrun parse-pairs
    write-lastrun write-lastrun-vars getopt-extra usage
    println block-device? directory? root-user?
+   parse-unit-as-bytes emit-bytes-as-unit
    which* path system->string* system->devnull*)
   #:use-module ((srfi srfi-1) #:prefix srfi-1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
@@ -173,3 +174,42 @@
 (define (parse-pairs pair-list)
   (map (lambda (pair) (string-split pair #\:))
        (string-split pair-list #\,)))
+
+(define unit-factors
+  '(("K" . 10)
+    ("M" . 20)
+    ("G" . 30)
+    ("T" . 40)
+    ("P" . 50)
+    ("E" . 60)
+    ("Z" . 70)
+    ("Y" . 80)))
+
+(define (parse-unit-as-bytes size-unit)
+  (let
+      ((size-matcher (regex:string-match "^([0-9]+)([KMGTPEZY])?$" size-unit)))
+    (if size-matcher
+	(let* ((size-num (regex:match:substring size-matcher 1))
+	       (size-num (string->number size-num))
+	       (size-unit (regex:match:substring size-matcher 2))
+	       (unit-factor (assoc-ref unit-factors size-unit)))
+	  (* size-num (expt 2 unit-factor)))
+	(error "Cannot parse as bytes:" size-string))))
+
+(define (match-unit-factor bytes units)
+  (srfi-1:fold
+   (lambda (next current)
+     (let ((next-factor (cdr next)))
+       (if (< 0 (quotient bytes (expt 2 next-factor)))
+	   next current)))
+   (car units)
+   (cdr units)))
+
+(define (emit-bytes-as-unit bytes)
+  (let* ((unit (match-unit-factor bytes unit-factors))
+	 (unit-symbol (car unit))
+	 (unit-factor (cdr unit)))
+    (string-append
+     (number->string
+      (floor (/ bytes (expt 2 unit-factor))))
+     unit-symbol)))
