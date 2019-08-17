@@ -176,7 +176,8 @@
        (string-split pair-list #\,)))
 
 (define unit-factors
-  '(("K" . 10)
+  '((#f . 0)
+    ("K" . 10)
     ("M" . 20)
     ("G" . 30)
     ("T" . 40)
