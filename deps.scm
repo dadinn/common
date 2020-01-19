@@ -21,7 +21,8 @@
 	      (begin
 		(display "Installing necessary packages...")
 		(system "apt update")
-		(system "apt install -y gdisk parted cryptsetup"))
+		(when (not (zero? (system "apt install -y gdisk parted cryptsetup")))
+		 (error "Failed to install packages: gdisk, parted, cryptsetup")))
 	      (error "Necessary binaries are missing" missing))))
     (with-output-to-file lockfile-path
       (lambda () (display "")))))
@@ -33,7 +34,8 @@
 	 ((file-exists? "/etc/debian_version")
 	  (display "Installing necessary packages...")
 	  (system "apt update")
-	  (system "apt install -y lvm2"))
+	  (when (not (zero? (system "apt install -y lvm2")))
+	   (error "Failed to install package lvm2")))
 	 (else
 	  (error "Necessary binaries are missing" missing))))))
 
@@ -53,12 +55,14 @@
 			  (result (regex:match:substring (regexp-exec pattern result) 1)))
 		     (utils:println "deb" result "stretch" "main" "contrib"))))))
 	   (system* "apt" "update")
-	   (system* "apt" "install" "-y" "-t" "jessie-backports" "zfs-dkms"))
+	   (when (not (zero? (system* "apt" "install" "-y" "-t" "jessie-backports" "zfs-dkms")))
+	    (error "Failed to install package zfs-dkms")))
 	  ((9)
 	   (system* "sed" "-i" "-re" "s;^deb (.+) stretch main$;deb \\1 stretch main contrib;"
 		    "/etc/apt/sources.list.d/base.list")
 	   (system* "apt" "update")
-	   (system* "apt" "install" "-y" "zfs-dkms"))
+	   (when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
+	    (error "Failed to install package zfs-dkms")))
 	  (else
 	   (error "Debian version is not supported" release)))))
      (else
