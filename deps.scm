@@ -63,6 +63,18 @@
 	(system* "apt" "update")
 	(when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
 	  (error "Failed to install package zfs-dkms")))
+       ((= 10 release)
+	(with-output-to-file "/etc/apt/sources.list.d/backports.list"
+	  (lambda ()
+	    (call-with-input-file "/etc/apt/sources.list"
+	      (lambda (port)
+		(let* ((result (rdelim:read-string port))
+		       (pattern (make-regexp "^deb (.*) buster main$" regexp/newline))
+		       (result (regex:match:substring (regexp-exec pattern result) 1)))
+		  (utils:println "deb" result "buster-backports" "main" "contrib"))))))
+	(system* "apt" "update")
+	(when (not (zero? (system* "apt" "install" "-y" "-t" "buster-backports" "zfs-dkms")))
+	  (error "Failed to install package zfs-dkms")))
        (else
 	(error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))
       (when (not (zero? (system* "modprobe" "zfs")))
