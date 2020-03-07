@@ -176,7 +176,7 @@
        (string-split pair-list #\,)))
 
 (define unit-factors
-  '((#f . 0)
+  '(("" . 0)
     ("K" . 10)
     ("M" . 20)
     ("G" . 30)
@@ -188,7 +188,7 @@
 
 (define (parse-unit-as-bytes size-unit)
   (let
-      ((size-matcher (regex:string-match "^([0-9]+)([KMGTPEZY])?$" size-unit)))
+      ((size-matcher (regex:string-match "^([0-9]+)([KMGTPEZY]?)$" size-unit)))
     (if size-matcher
 	(let* ((size-num (regex:match:substring size-matcher 1))
 	       (size-num (string->number size-num))
