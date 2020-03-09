@@ -129,11 +129,12 @@
     (lambda ()
       (map
        (lambda (entry)
-	 (display
-	  (string-append
-	   (i18n:string-locale-upcase(symbol->string (car entry)))
-	   "=" (cadr entry)))
-	 (newline))
+	 (let* ((key (car entry))
+		(key (symbol->string key))
+		(key (i18n:string-locale-upcase key))
+		(value (cadr entry)))
+	   (display (string-append key "=" value))
+	   (newline)))
        (filter
 	(lambda (entry)
 	  (not (equal? '() (car entry))))
