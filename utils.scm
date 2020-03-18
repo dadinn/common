@@ -132,7 +132,11 @@
 	 (let* ((key (car entry))
 		(key (symbol->string key))
 		(key (i18n:string-locale-upcase key))
-		(value (cadr entry)))
+		(value (cadr entry))
+		(value
+		 (if (boolean? value)
+		     (if value "1" "0")
+		     value)))
 	   (display (string-append key "=" value))
 	   (newline)))
        (filter
