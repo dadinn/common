@@ -129,11 +129,16 @@
     (lambda ()
       (map
        (lambda (entry)
-	 (display
-	  (string-append
-	   (i18n:string-locale-upcase(symbol->string (car entry)))
-	   "=" (cadr entry)))
-	 (newline))
+	 (let* ((key (car entry))
+		(key (symbol->string key))
+		(key (i18n:string-locale-upcase key))
+		(value (cadr entry))
+		(value
+		 (if (boolean? value)
+		     (if value "1" "0")
+		     value)))
+	   (display (string-append key "=" value))
+	   (newline)))
        (filter
 	(lambda (entry)
 	  (not (equal? '() (car entry))))
@@ -145,6 +150,7 @@
     (lambda (spec)
       (let* ((long-name (car spec))
 	     (props (cdr spec))
+	     (props (map (lambda (spec) (cons (car spec) (cadr spec))) props))
 	     (single-char (assoc-ref props 'single-char))
 	     (description (assoc-ref props 'description))
 	     (value (assoc-ref props 'value))
@@ -153,19 +159,19 @@
 	     (lastrun (hash-ref lastrun long-name)))
 	(string-append
 	 (if single-char
-	     (string #\- (car single-char)))
+	     (string #\- single-char))
 	 " "
 	 (string-append "--" (symbol->string long-name))
 	 (if value
 	     (if value-arg
-		 (string-append " " (i18n:string-locale-upcase (car value-arg)) "\n")
+		 (string-append " " (i18n:string-locale-upcase value-arg) "\n")
 		 " ARG\n")
 	     "\n")
-	 (if description (car description) "NO DESCRIPTION")
+	 (if description description "NO DESCRIPTION")
 	 (if value
 	     (cond
 	      (lastrun (string-append " (default " lastrun ")"))
-	      (default (string-append " (default " (car default) ")"))
+	      (default (string-append " (default " default ")"))
 	      (else ""))
 	     (if (or lastrun default) " (default)" "")))))
     specs)
