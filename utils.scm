@@ -114,6 +114,17 @@
       (hash-set! result '() varargs))
     result))
 
+(define (read-config path)
+  (if (file-exists? path)
+      (let* ((lr-file (open-input-file path))
+	     (lr-alist
+	      (map
+	       (lambda (kv) (cons (car kv) (cadr kv)))
+	       (read lr-file))))
+	(close lr-file)
+	(hash:alist->hash-table lr-alist))
+      (make-hash-table 0)))
+
 (define (write-lastrun path options)
   (let ((lrfile (open-output-file path)))
     (pp:pretty-print
