@@ -143,7 +143,7 @@
 	  (not (equal? '() (car entry))))
 	(hash-map->list list options))))))
 
-(define (usage specs lastrun)
+(define* (usage specs #:optional defaults-override)
   (string-join
    (map
     (lambda (spec)
@@ -155,7 +155,10 @@
 	     (value (assoc-ref props 'value))
 	     (value-arg (assoc-ref props 'value-arg))
 	     (default (assoc-ref props 'default))
-	     (lastrun (hash-ref lastrun long-name)))
+	     (default
+	       (if defaults-override
+		   (hash-ref defaults-override long-name default)
+		   default)))
 	(string-append
 	 (if single-char
 	     (string #\- single-char))
@@ -167,12 +170,11 @@
 		 " ARG\n")
 	     "\n")
 	 (if description description "NO DESCRIPTION")
-	 (if value
-	     (cond
-	      (lastrun (string-append " (default " lastrun ")"))
-	      (default (string-append " (default " default ")"))
-	      (else ""))
-	     (if (or lastrun default) " (default)" "")))))
+	 (if default
+	     (if value
+		 (string-append " (default " default ")")
+		 " (default)")
+	     ""))))
     specs)
    "\n\n"))
 
