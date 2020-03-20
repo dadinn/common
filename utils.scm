@@ -1,7 +1,7 @@
 (define-module (common utils)
   #:export
-  (read-lastrun parse-pairs
-   write-lastrun write-lastrun-vars getopt-extra usage
+  (getopt-extra usage parse-pairs
+   read-config write-config write-config-vars
    println block-device? directory? root-user?
    parse-unit-as-bytes emit-bytes-as-unit
    which* path system->string* system->devnull*)
@@ -125,7 +125,7 @@
 	(hash:alist->hash-table lr-alist))
       (make-hash-table 0)))
 
-(define (write-lastrun path options)
+(define (write-config path options)
   (let ((lrfile (open-output-file path)))
     (pp:pretty-print
      (filter
@@ -134,7 +134,7 @@
       (hash-map->list list options)) lrfile)
     (close lrfile)))
 
-(define (write-lastrun-vars path options)
+(define (write-config-vars path options)
   (with-output-to-file path
     (lambda ()
       (map
