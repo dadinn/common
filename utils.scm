@@ -95,8 +95,8 @@
 
 (define* (getopt-extra args options-spec #:optional defaults)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
-	 (result (make-hash-table (length options-spec)))
-	 (varargs (getopt:option-ref options '() #f)))
+	 (varargs (getopt:option-ref options '() #f))
+	 (result (make-hash-table (length options-spec))))
     (map
      (lambda (spec)
        (let* ((long-name (car spec))
