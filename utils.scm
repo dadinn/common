@@ -70,12 +70,8 @@
     '(single-char value required? predicate))))
 
 (define (conform-props props)
-  (srfi-1:fold
-   (lambda (kv new-props)
-     (if (hash-ref supported-props (car kv))
-	 (cons kv new-props)
-	 new-props))
-   #nil
+  (filter
+   (lambda (kv) (hash-ref supported-props (car kv)))
    props))
 
 (define (conform-spec spec)
