@@ -93,7 +93,7 @@
 	(hash:alist->hash-table lr-alist))
       (make-hash-table 0)))
 
-(define* (getopt-extra args options-spec #:optional defaults)
+(define* (getopt-extra args options-spec #:optional defaults-override)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
 	 (varargs (getopt:option-ref options '() #f))
 	 (result (make-hash-table (length options-spec))))
@@ -103,7 +103,10 @@
 	      (props (cdr spec))
 	      (default (assoc-ref props 'default))
 	      (default (and default (car default)))
-	      (default (hash-ref defaults long-name default))
+	      (default
+		(if defaults-override
+		    (hash-ref defaults-override long-name default)
+		    default))
 	      (value (getopt:option-ref options long-name default)))
 	 (if value (hash-set! result long-name value))))
      options-spec)
