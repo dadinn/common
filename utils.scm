@@ -1,7 +1,7 @@
 (define-module (common utils)
   #:export
-  (read-lastrun parse-pairs
-   write-lastrun write-lastrun-vars getopt-extra usage
+  (getopt-extra usage parse-pairs
+   read-config write-config write-config-vars
    println block-device? directory? root-user?
    parse-unit-as-bytes emit-bytes-as-unit
    which* path system->string* system->devnull*)
@@ -70,12 +70,8 @@
     '(single-char value required? predicate))))
 
 (define (conform-props props)
-  (srfi-1:fold
-   (lambda (kv new-props)
-     (if (hash-ref supported-props (car kv))
-	 (cons kv new-props)
-	 new-props))
-   #nil
+  (filter
+   (lambda (kv) (hash-ref supported-props (car kv)))
    props))
 
 (define (conform-spec spec)
@@ -97,17 +93,20 @@
 	(hash:alist->hash-table lr-alist))
       (make-hash-table 0)))
 
-(define* (getopt-extra args options-spec #:optional defaults)
+(define* (getopt-extra args options-spec #:optional defaults-override)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
-	 (result (make-hash-table (length options-spec)))
-	 (varargs (getopt:option-ref options '() #f)))
+	 (varargs (getopt:option-ref options '() #f))
+	 (result (make-hash-table (length options-spec))))
     (map
      (lambda (spec)
        (let* ((long-name (car spec))
 	      (props (cdr spec))
 	      (default (assoc-ref props 'default))
 	      (default (and default (car default)))
-	      (default (hash-ref defaults long-name default))
+	      (default
+		(if defaults-override
+		    (hash-ref defaults-override long-name default)
+		    default))
 	      (value (getopt:option-ref options long-name default)))
 	 (if value (hash-set! result long-name value))))
      options-spec)
@@ -115,7 +114,18 @@
       (hash-set! result '() varargs))
     result))
 
-(define (write-lastrun path options)
+(define (read-config path)
+  (if (file-exists? path)
+      (let* ((lr-file (open-input-file path))
+	     (lr-alist
+	      (map
+	       (lambda (kv) (cons (car kv) (cadr kv)))
+	       (read lr-file))))
+	(close lr-file)
+	(hash:alist->hash-table lr-alist))
+      (make-hash-table 0)))
+
+(define (write-config path options)
   (let ((lrfile (open-output-file path)))
     (pp:pretty-print
      (filter
@@ -124,7 +134,7 @@
       (hash-map->list list options)) lrfile)
     (close lrfile)))
 
-(define (write-lastrun-vars path options)
+(define (write-config-vars path options)
   (with-output-to-file path
     (lambda ()
       (map
@@ -144,7 +154,7 @@
 	  (not (equal? '() (car entry))))
 	(hash-map->list list options))))))
 
-(define (usage specs lastrun)
+(define* (usage specs #:optional defaults-override)
   (string-join
    (map
     (lambda (spec)
@@ -156,7 +166,10 @@
 	     (value (assoc-ref props 'value))
 	     (value-arg (assoc-ref props 'value-arg))
 	     (default (assoc-ref props 'default))
-	     (lastrun (hash-ref lastrun long-name)))
+	     (default
+	       (if defaults-override
+		   (hash-ref defaults-override long-name default)
+		   default)))
 	(string-append
 	 (if single-char
 	     (string #\- single-char))
@@ -168,12 +181,11 @@
 		 " ARG\n")
 	     "\n")
 	 (if description description "NO DESCRIPTION")
-	 (if value
-	     (cond
-	      (lastrun (string-append " (default " lastrun ")"))
-	      (default (string-append " (default " default ")"))
-	      (else ""))
-	     (if (or lastrun default) " (default)" "")))))
+	 (if default
+	     (if value
+		 (string-append " (default " default ")")
+		 " (default)")
+	     ""))))
     specs)
    "\n\n"))
 
