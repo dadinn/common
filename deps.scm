@@ -13,8 +13,8 @@
     (close rdr)
     res))
 
-(define (install-deps-base lockfile-path)
-  (when (not (file-exists? lockfile-path))
+(define* (install-deps-base #:optional lockfile-path)
+  (when (not (and lockfile-path (file-exists? lockfile-path)))
     (let ((missing (utils:which* "sgdisk" "partprobe" "cryptsetup")))
       (if (not (null? missing))
 	  (if (file-exists? "/etc/debian_version")
@@ -24,8 +24,9 @@
 		(when (not (zero? (system "apt install -y gdisk parted cryptsetup")))
 		 (error "Failed to install packages: gdisk, parted, cryptsetup")))
 	      (error "Necessary binaries are missing" missing))))
-    (with-output-to-file lockfile-path
-      (lambda () (display "")))))
+    (when lockfile-path
+      (with-output-to-file lockfile-path
+	(lambda () (display ""))))))
 
 (define (install-deps-lvm)
   (let ((missing (utils:which* "pvcreate" "vgcreate" "lvcreate")))
@@ -39,8 +40,8 @@
 	 (else
 	  (error "Necessary binaries are missing" missing))))))
 
-(define (install-deps-zfs lockfile-path)
-  (when (not (file-exists? lockfile-path))
+(define* (install-deps-zfs #:optional lockfile-path)
+  (when (not (and lockfile-path (file-exists? lockfile-path)))
     (cond
      ((file-exists? "/etc/debian_version")
       (let ((release (read-debian-version)))
@@ -70,5 +71,6 @@
     (when (not (zero? (system* "modprobe" "zfs")))
       (error "ZFS kernel modules are missing!"))
     (utils:println "ZFS kernel modules are loaded!")
-    (with-output-to-file lockfile-path
-      (lambda () (display "")))))
+    (when lockfile-path
+      (with-output-to-file lockfile-path
+	(lambda () (display ""))))))
