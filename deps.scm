@@ -43,35 +43,31 @@
 
 (define* (install-deps-zfs #:optional lockfile-path)
   (when (not (and lockfile-path (file-exists? lockfile-path)))
-    (cond
-     ((file-exists? "/etc/debian_version")
-      (let ((release (read-debian-version)))
-	(case release
-	  ((8)
-	   (with-output-to-file "/etc/apt/sources.list.d/backports.list"
-	     (lambda ()
-	       (call-with-input-file "/etc/apt/sources.list"
-		 (lambda (port)
-		   (let* ((result (rdelim:read-string port))
-			  (pattern (make-regexp "^deb (.*) jessie main$" regexp/newline))
-			  (result (regex:match:substring (regexp-exec pattern result) 1)))
-		     (utils:println "deb" result "jessie-backports" "main" "contrib"))))))
-	   (system* "apt" "update")
-	   (when (not (zero? (system* "apt" "install" "-y" "-t" "jessie-backports" "zfs-dkms")))
-	    (error "Failed to install package zfs-dkms")))
-	  ((9)
-	   (system* "sed" "-i" "-re" "s;^deb (.+) stretch main$;deb \\1 stretch main contrib;"
-		    "/etc/apt/sources.list.d/base.list")
-	   (system* "apt" "update")
-	   (when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
-	    (error "Failed to install package zfs-dkms")))
-	  (else
-	   (error "Debian version is not supported" release)))))
-     (else
-      (error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))
-    (when (not (zero? (system* "modprobe" "zfs")))
-      (error "ZFS kernel modules are missing!"))
-    (utils:println "ZFS kernel modules are loaded!")
-    (when lockfile-path
-      (with-output-to-file lockfile-path
-	(lambda () (display ""))))))
+    (let ((release (or (read-debian-version) 0)))
+      (cond
+       ((= 8 release)
+	(with-output-to-file "/etc/apt/sources.list.d/backports.list"
+	  (lambda ()
+	    (call-with-input-file "/etc/apt/sources.list"
+	      (lambda (port)
+		(let* ((result (rdelim:read-string port))
+		       (pattern (make-regexp "^deb (.*) jessie main$" regexp/newline))
+		       (result (regex:match:substring (regexp-exec pattern result) 1)))
+		  (utils:println "deb" result "jessie-backports" "main" "contrib"))))))
+	(system* "apt" "update")
+	(when (not (zero? (system* "apt" "install" "-y" "-t" "jessie-backports" "zfs-dkms")))
+	  (error "Failed to install package zfs-dkms")))
+       ((= 9 release)
+	(system* "sed" "-i" "-re" "s;^deb (.+) stretch main$;deb \\1 stretch main contrib;"
+		 "/etc/apt/sources.list.d/base.list")
+	(system* "apt" "update")
+	(when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
+	  (error "Failed to install package zfs-dkms")))
+       (else
+	(error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))
+      (when (not (zero? (system* "modprobe" "zfs")))
+	(error "ZFS kernel modules are missing!"))
+      (utils:println "ZFS kernel modules are loaded!")
+      (when lockfile-path
+	(with-output-to-file lockfile-path
+	  (lambda () (display "")))))))
