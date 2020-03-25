@@ -45,35 +45,25 @@
   (when (not (and lockfile-path (file-exists? lockfile-path)))
     (let ((release (or (read-debian-version) 0)))
       (cond
-       ((= 8 release)
-	(with-output-to-file "/etc/apt/sources.list.d/backports.list"
-	  (lambda ()
-	    (call-with-input-file "/etc/apt/sources.list"
-	      (lambda (port)
-		(let* ((result (rdelim:read-string port))
-		       (pattern (make-regexp "^deb (.*) jessie main$" regexp/newline))
-		       (result (regex:match:substring (regexp-exec pattern result) 1)))
-		  (utils:println "deb" result "jessie-backports" "main" "contrib"))))))
-	(system* "apt" "update")
-	(when (not (zero? (system* "apt" "install" "-y" "-t" "jessie-backports" "zfs-dkms")))
-	  (error "Failed to install package zfs-dkms")))
-       ((= 9 release)
-	(system* "sed" "-i" "-re" "s;^deb (.+) stretch main$;deb \\1 stretch main contrib;"
+       ((member release (list 8 10))
+	(call-with-input-file "/etc/apt/sources.list"
+	  (lambda (port)
+	    (let* ((pattern (make-regexp "^deb ([^ ]+) ([^ ]+) main$" regexp/newline))
+		   (match (rdelim:read-string port))
+		   (match (regexp-exec pattern match))
+		   (uri (regex:match:substring match 1))
+		   (suite (regex:match:substring match 2))
+		   (suite (string-append suite "-backports")))
+	      (with-output-to-file "/etc/apt/sources.list.d/backports.list"
+		(lambda () (utils:println "deb" uri suite  "main" "contrib")))
+	      (system* "apt" "update")
+	      (when (not (zero? (system* "apt" "install" "-y" "-t" suite "zfs-dkms")))
+		(error "Failed to install package zfs-dkms"))))))
+       ((<= 9 release)
+	(system* "sed" "-i" "-re" "s;^deb ([^ ]+) ([^ ]+) main$;deb \\1 \\2 main contrib;"
 		 "/etc/apt/sources.list.d/base.list")
 	(system* "apt" "update")
 	(when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
-	  (error "Failed to install package zfs-dkms")))
-       ((= 10 release)
-	(with-output-to-file "/etc/apt/sources.list.d/backports.list"
-	  (lambda ()
-	    (call-with-input-file "/etc/apt/sources.list"
-	      (lambda (port)
-		(let* ((result (rdelim:read-string port))
-		       (pattern (make-regexp "^deb (.*) buster main$" regexp/newline))
-		       (result (regex:match:substring (regexp-exec pattern result) 1)))
-		  (utils:println "deb" result "buster-backports" "main" "contrib"))))))
-	(system* "apt" "update")
-	(when (not (zero? (system* "apt" "install" "-y" "-t" "buster-backports" "zfs-dkms")))
 	  (error "Failed to install package zfs-dkms")))
        (else
 	(error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))
