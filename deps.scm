@@ -54,7 +54,7 @@
 		   (let* ((result (rdelim:read-string port))
 			  (pattern (make-regexp "^deb (.*) jessie main$" regexp/newline))
 			  (result (regex:match:substring (regexp-exec pattern result) 1)))
-		     (utils:println "deb" result "stretch" "main" "contrib"))))))
+		     (utils:println "deb" result "jessie-backports" "main" "contrib"))))))
 	   (system* "apt" "update")
 	   (when (not (zero? (system* "apt" "install" "-y" "-t" "jessie-backports" "zfs-dkms")))
 	    (error "Failed to install package zfs-dkms")))
