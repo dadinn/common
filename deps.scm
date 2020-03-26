@@ -58,7 +58,9 @@
 		(lambda ()
 		  (utils:println "deb" uri suite  "main" "contrib")
 		  (utils:println "deb-src" uri suite  "main" "contrib")))
-	      (system* "apt" "update")
+	      (system* "apt" "update"
+		       "-o" "Acquire::Check-Valid-Until=false"
+		       "-o" "Acquire::Check-Date=false")
 	      (when (not (zero? (system* "apt" "install" "-y" "-t" suite "zfs-dkms")))
 		(error "Failed to install package zfs-dkms"))))))
        ((<= 9 release)
