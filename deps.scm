@@ -55,7 +55,9 @@
 		   (suite (regex:match:substring match 2))
 		   (suite (string-append suite "-backports")))
 	      (with-output-to-file "/etc/apt/sources.list.d/backports.list"
-		(lambda () (utils:println "deb" uri suite  "main" "contrib")))
+		(lambda ()
+		  (utils:println "deb" uri suite  "main" "contrib")
+		  (utils:println "deb-src" uri suite  "main" "contrib")))
 	      (system* "apt" "update")
 	      (when (not (zero? (system* "apt" "install" "-y" "-t" suite "zfs-dkms")))
 		(error "Failed to install package zfs-dkms"))))))
