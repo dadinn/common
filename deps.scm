@@ -16,13 +16,13 @@
 
 (define* (install-deps-base #:optional lockfile-path)
   (when (not (and lockfile-path (file-exists? lockfile-path)))
-    (let ((missing (utils:which* "sgdisk" "partprobe" "cryptsetup")))
+    (let ((missing (utils:which* "sgdisk" "partprobe" "cryptsetup" "mkfs.fat")))
       (if (not (null? missing))
 	  (if (read-debian-version)
 	      (begin
 		(display "Installing necessary packages...")
 		(system "apt update")
-		(when (not (zero? (system "apt install -y gdisk parted cryptsetup")))
+		(when (not (zero? (system "apt install -y gdisk parted cryptsetup dosfstools")))
 		 (error "Failed to install packages: gdisk, parted, cryptsetup")))
 	      (error "Necessary binaries are missing" missing))))
     (when lockfile-path
