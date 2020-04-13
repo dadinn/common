@@ -5,19 +5,20 @@
   #:use-module ((ice-9 regex) #:prefix regex:))
 
 (define (read-debian-version)
-  (let* ((rdr (open-input-file "/etc/debian_version"))
-	 (res (rdelim:read-string rdr))
-	 (res (regex:string-match "^[0-9]+" res))
-	 (res (regex:match:substring res))
-	 (res (string->number res)))
-    (close rdr)
-    res))
+  (if (file-exists? "/etc/debian_version")
+    (let* ((rdr (open-input-file "/etc/debian_version"))
+	   (res (rdelim:read-string rdr))
+	   (res (regex:string-match "^[0-9]+" res))
+	   (res (regex:match:substring res))
+	   (res (string->number res)))
+      (close rdr)
+      res)))
 
 (define* (install-deps-base #:optional lockfile-path)
   (when (not (and lockfile-path (file-exists? lockfile-path)))
     (let ((missing (utils:which* "sgdisk" "partprobe" "cryptsetup")))
       (if (not (null? missing))
-	  (if (file-exists? "/etc/debian_version")
+	  (if (read-debian-version)
 	      (begin
 		(display "Installing necessary packages...")
 		(system "apt update")
@@ -42,35 +43,36 @@
 
 (define* (install-deps-zfs #:optional lockfile-path)
   (when (not (and lockfile-path (file-exists? lockfile-path)))
-    (cond
-     ((file-exists? "/etc/debian_version")
-      (let ((release (read-debian-version)))
-	(case release
-	  ((8)
-	   (with-output-to-file "/etc/apt/sources.list.d/backports.list"
-	     (lambda ()
-	       (call-with-input-file "/etc/apt/sources.list"
-		 (lambda (port)
-		   (let* ((result (rdelim:read-string port))
-			  (pattern (make-regexp "^deb (.*) jessie main$" regexp/newline))
-			  (result (regex:match:substring (regexp-exec pattern result) 1)))
-		     (utils:println "deb" result "jessie-backports" "main" "contrib"))))))
-	   (system* "apt" "update")
-	   (when (not (zero? (system* "apt" "install" "-y" "-t" "jessie-backports" "zfs-dkms")))
-	    (error "Failed to install package zfs-dkms")))
-	  ((9)
-	   (system* "sed" "-i" "-re" "s;^deb (.+) stretch main$;deb \\1 stretch main contrib;"
-		    "/etc/apt/sources.list.d/base.list")
-	   (system* "apt" "update")
-	   (when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
-	    (error "Failed to install package zfs-dkms")))
-	  (else
-	   (error "Debian version is not supported" release)))))
-     (else
-      (error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))
-    (when (not (zero? (system* "modprobe" "zfs")))
-      (error "ZFS kernel modules are missing!"))
-    (utils:println "ZFS kernel modules are loaded!")
-    (when lockfile-path
-      (with-output-to-file lockfile-path
-	(lambda () (display ""))))))
+    (let ((release (or (read-debian-version) 0)))
+      (cond
+       ((member release (list 8 10))
+	(call-with-input-file "/etc/apt/sources.list"
+	  (lambda (port)
+	    (let* ((pattern (make-regexp "^deb ([^ ]+) ([^ ]+) main$" regexp/newline))
+		   (match (rdelim:read-string port))
+		   (match (regexp-exec pattern match))
+		   (uri (regex:match:substring match 1))
+		   (suite (regex:match:substring match 2))
+		   (suite (string-append suite "-backports")))
+	      (with-output-to-file "/etc/apt/sources.list.d/backports.list"
+		(lambda ()
+		  (utils:println "deb" uri suite  "main" "contrib")
+		  (utils:println "deb-src" uri suite  "main" "contrib")))
+	      (system* "apt" "update"
+		       "-o" "Acquire::Check-Valid-Until=false"
+		       "-o" "Acquire::Check-Date=false")
+	      (when (not (zero? (system* "apt" "install" "-y" "-t" suite "zfs-dkms")))
+		(error "Failed to install package zfs-dkms"))))))
+       ((<= 9 release)
+	(system* "sed" "-i" "-re" "s;^deb ([^ ]+) ([^ ]+) main$;deb \\1 \\2 main contrib;"
+		 "/etc/apt/sources.list.d/base.list")
+	(system* "apt" "update")
+	(when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
+	  (error "Failed to install package zfs-dkms")))
+       (else
+	(error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))
+      (when (not (zero? (system* "modprobe" "zfs")))
+	(error "ZFS kernel modules are not loaded!"))
+      (when lockfile-path
+	(with-output-to-file lockfile-path
+	  (lambda () (display "")))))))
