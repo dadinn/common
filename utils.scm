@@ -4,7 +4,8 @@
    read-config write-config write-config-vars
    println block-device? directory? root-user?
    parse-unit-as-bytes emit-bytes-as-unit
-   which* path system->string* system->devnull*)
+   which* path system->string* system->devnull*
+   unique)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
@@ -28,6 +29,13 @@
 
 (define* (path head #:rest tail)
   (string-join (cons head tail) "/"))
+
+(define (unique items)
+  "Return list of uinque items. Does not guarantee order to be preserved."
+  (let* ((size (exact-integer-sqrt (length items)))
+	 (table (make-hash-table size)))
+    (map (lambda (item) (hash-set! table item #t)) items)
+    (hash-map->list (lambda (key val) key) table)))
 
 (define (block-device? path)
   (and (file-exists? path)
