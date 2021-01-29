@@ -5,7 +5,7 @@
    println block-device? directory? root-user?
    parse-unit-as-bytes emit-bytes-as-unit
    which* path system->string* system->devnull*)
-  #:use-module ((srfi srfi-1) #:prefix srfi-1:)
+  #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
   #:use-module ((ice-9 getopt-long) #:prefix getopt:)
@@ -214,7 +214,7 @@
 	(error "Cannot parse as bytes:" unit-string))))
 
 (define (match-unit-factor bytes units)
-  (srfi-1:fold
+  (srfi1:fold
    (lambda (next current)
      (let ((next-factor (cdr next)))
        (if (< 0 (quotient bytes (expt 2 next-factor)))
