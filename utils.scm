@@ -1,11 +1,11 @@
 (define-module (common utils)
   #:export
-  (getopt-extra usage parse-pairs move-file
+  (getopt-extra usage config-filename
    read-config write-config write-config-vars
-   println block-device? directory? root-user?
-   parse-unit-as-bytes emit-bytes-as-unit
-   which* path system->string* system->devnull*
-   unique group-by executable? config-filename)
+   parse-unit-as-bytes emit-bytes-as-unit parse-pairs
+   root-user? block-device? directory? executable?
+   println system->string* system->devnull*
+   path move-file which* unique group-by)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
