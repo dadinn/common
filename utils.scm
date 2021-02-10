@@ -5,7 +5,7 @@
    println block-device? directory? root-user?
    parse-unit-as-bytes emit-bytes-as-unit
    which* path system->string* system->devnull*
-   unique)
+   unique group-by)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
@@ -36,6 +36,18 @@
 	 (table (make-hash-table size)))
     (map (lambda (item) (hash-set! table item #t)) items)
     (hash-map->list (lambda (key val) key) table)))
+
+(define (group-by key-fn items)
+  "Aggregate items into a multi-map, keyed by the `key-fn` function called on each item."
+  (let* ((size (exact-integer-sqrt (length items)))
+	 (result (make-hash-table size)))
+    (map
+     (lambda (item)
+       (let* ((key (key-fn item))
+	      (acc (hash-ref result key #nil)))
+	 (hash-set! result key (cons item acc))))
+     items)
+    result))
 
 (define (block-device? path)
   (and (file-exists? path)
