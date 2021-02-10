@@ -5,7 +5,7 @@
    println block-device? directory? root-user?
    parse-unit-as-bytes emit-bytes-as-unit
    which* path system->string* system->devnull*
-   unique group-by)
+   unique group-by executable?)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
@@ -56,6 +56,10 @@
 (define (directory? path)
   (and (file-exists? path)
        (eq? 'directory (stat:type (stat path)))))
+
+(define (executable? path)
+  (and (file-exists? path)
+       (access? path X_OK)))
 
 (define (root-user?)
   (let* ((id-res (system->string* "id" "-u"))
