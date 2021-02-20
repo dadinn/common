@@ -5,7 +5,7 @@
    println block-device? directory? root-user?
    parse-unit-as-bytes emit-bytes-as-unit
    which* path system->string* system->devnull*
-   unique group-by executable?)
+   unique group-by executable? config-filename)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
@@ -182,6 +182,8 @@
 (define (move-file oldfile newfile)
   (copy-file oldfile newfile)
   (delete-file oldfile))
+
+(define config-filename "INSTROOT_VARS.scm")
 
 (define* (usage specs #:optional defaults-override)
   (string-join
