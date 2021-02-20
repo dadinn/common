@@ -1,6 +1,6 @@
 (define-module (common utils)
   #:export
-  (getopt-extra usage parse-pairs
+  (getopt-extra usage parse-pairs move-file
    read-config write-config write-config-vars
    println block-device? directory? root-user?
    parse-unit-as-bytes emit-bytes-as-unit
@@ -172,6 +172,10 @@
 	(lambda (entry)
 	  (not (equal? '() (car entry))))
 	(hash-map->list list options))))))
+
+(define (move-file oldfile newfile)
+  (copy-file oldfile newfile)
+  (delete-file oldfile))
 
 (define* (usage specs #:optional defaults-override)
   (string-join
