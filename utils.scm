@@ -15,18 +15,6 @@
   #:use-module ((ice-9 regex) #:prefix regex:)
   #:use-module ((ice-9 popen) #:prefix popen:))
 
-(define (which acc args)
-  (if (not (null? args))
-      (let ((curr (car args)))
-	(if (zero? (system->devnull* "which" curr))
-	    (which acc (cdr args))
-	    (which (cons curr acc) (cdr args))))
-      acc))
-
-(define* (which* #:rest args)
-  (with-output-to-file "/dev/null"
-    (lambda () (which #nil args))))
-
 (define* (path head #:rest tail)
   (string-join (cons head tail) "/"))
 
@@ -60,6 +48,20 @@
 (define (executable? path)
   (and (file-exists? path)
        (access? path X_OK)))
+
+(define (executable-on-path? file-name paths)
+  (srfi1:fold
+   (lambda (p res) (or res (executable? (path p file-name))))
+   #f paths))
+
+(define* (which* #:rest commands)
+  "Given a list of commands, returns those which are not available on the PATH as executables."
+  (let ((paths (string-split (getenv "PATH") #\:)))
+    (srfi1:fold
+     (lambda (command acc)
+       (if (executable-on-path? command paths)
+	   acc (cons command acc)))
+     '() commands)))
 
 (define (root-user?)
   (let* ((id-res (system->string* "id" "-u"))
