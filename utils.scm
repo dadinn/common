@@ -1,11 +1,12 @@
 (define-module (common utils)
   #:export
-  (getopt-extra usage parse-pairs
+  (getopt-extra usage config-filename
    read-config write-config write-config-vars
-   println block-device? directory? root-user?
-   parse-unit-as-bytes emit-bytes-as-unit
-   which* path system->string* system->devnull*)
-  #:use-module ((srfi srfi-1) #:prefix srfi-1:)
+   parse-unit-as-bytes emit-bytes-as-unit parse-pairs
+   root-user? block-device? directory? executable?
+   println system->string* system->devnull*
+   path move-file which* unique group-by)
+  #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
   #:use-module ((ice-9 getopt-long) #:prefix getopt:)
@@ -14,20 +15,27 @@
   #:use-module ((ice-9 regex) #:prefix regex:)
   #:use-module ((ice-9 popen) #:prefix popen:))
 
-(define (which acc args)
-  (if (not (null? args))
-      (let ((curr (car args)))
-	(if (zero? (system->devnull* "which" curr))
-	    (which acc (cdr args))
-	    (which (cons curr acc) (cdr args))))
-      acc))
-
-(define* (which* #:rest args)
-  (with-output-to-file "/dev/null"
-    (lambda () (which #nil args))))
-
 (define* (path head #:rest tail)
   (string-join (cons head tail) "/"))
+
+(define (unique items)
+  "Return list of uinque items. Does not guarantee order to be preserved."
+  (let* ((size (exact-integer-sqrt (length items)))
+	 (table (make-hash-table size)))
+    (map (lambda (item) (hash-set! table item #t)) items)
+    (hash-map->list (lambda (key val) key) table)))
+
+(define (group-by key-fn items)
+  "Aggregate items into a multi-map, keyed by the `key-fn` function called on each item."
+  (let* ((size (exact-integer-sqrt (length items)))
+	 (result (make-hash-table size)))
+    (map
+     (lambda (item)
+       (let* ((key (key-fn item))
+	      (acc (hash-ref result key #nil)))
+	 (hash-set! result key (cons item acc))))
+     items)
+    result))
 
 (define (block-device? path)
   (and (file-exists? path)
@@ -36,6 +44,24 @@
 (define (directory? path)
   (and (file-exists? path)
        (eq? 'directory (stat:type (stat path)))))
+
+(define (executable? path)
+  (and (file-exists? path)
+       (access? path X_OK)))
+
+(define (executable-on-path? file-name paths)
+  (srfi1:fold
+   (lambda (p res) (or res (executable? (path p file-name))))
+   #f paths))
+
+(define* (which* #:rest commands)
+  "Given a list of commands, returns those which are not available on the PATH as executables."
+  (let ((paths (string-split (getenv "PATH") #\:)))
+    (srfi1:fold
+     (lambda (command acc)
+       (if (executable-on-path? command paths)
+	   acc (cons command acc)))
+     '() commands)))
 
 (define (root-user?)
   (let* ((id-res (system->string* "id" "-u"))
@@ -153,6 +179,12 @@
 	  (not (equal? '() (car entry))))
 	(hash-map->list list options))))))
 
+(define (move-file oldfile newfile)
+  (copy-file oldfile newfile)
+  (delete-file oldfile))
+
+(define config-filename "INSTROOT_VARS.scm")
+
 (define* (usage specs #:optional defaults-override)
   (string-join
    (map
@@ -214,7 +246,7 @@
 	(error "Cannot parse as bytes:" unit-string))))
 
 (define (match-unit-factor bytes units)
-  (srfi-1:fold
+  (srfi1:fold
    (lambda (next current)
      (let ((next-factor (cdr next)))
        (if (< 0 (quotient bytes (expt 2 next-factor)))
