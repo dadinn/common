@@ -71,8 +71,6 @@
 	  (error "Failed to install package zfs-dkms")))
        (else
 	(error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))
-      (when (not (zero? (system* "modprobe" "zfs")))
-	(error "ZFS kernel modules are not loaded!"))
       (when lockfile-path
 	(with-output-to-file lockfile-path
 	  (lambda () (display "")))))))
