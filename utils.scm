@@ -107,17 +107,6 @@
       (conform-props (cdr kv))))
    spec))
 
-(define (read-lastrun path)
-  (if (file-exists? path)
-      (let* ((lr-file (open-input-file path))
-	     (lr-alist
-	      (map
-	       (lambda (kv) (cons (car kv) (cadr kv)))
-	       (read lr-file))))
-	(close lr-file)
-	(hash:alist->hash-table lr-alist))
-      (make-hash-table 0)))
-
 (define* (getopt-extra args options-spec #:optional defaults-override)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
 	 (varargs (getopt:option-ref options '() #f))
