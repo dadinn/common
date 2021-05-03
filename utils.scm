@@ -94,17 +94,14 @@
     (lambda (k) (cons k #t))
     '(single-char value required? predicate))))
 
-(define (conform-props props)
-  (filter
-   (lambda (kv) (hash-ref supported-props (car kv)))
-   props))
-
 (define (conform-spec spec)
   (map
    (lambda (kv)
      (cons
       (car kv)
-      (conform-props (cdr kv))))
+      (filter
+       (lambda (kv) (hash-ref supported-props (car kv)))
+       (cdr kv))))
    spec))
 
 (define* (getopt-extra args options-spec #:optional defaults-override)
