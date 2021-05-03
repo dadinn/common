@@ -202,9 +202,7 @@
 		   (hash-ref defaults-override long-name default)
 		   default)))
 	(string-append
-	 (if single-char
-	     (string #\- single-char))
-	 " "
+	 (if single-char (string #\- single-char #\space) "")
 	 (string-append "--" (symbol->string long-name))
 	 (if value
 	     (if value-arg
