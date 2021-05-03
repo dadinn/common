@@ -193,11 +193,12 @@
 	(string-append
 	 (if single-char (string #\- single-char #\space) "")
 	 (string-append "--" (symbol->string long-name))
-	 (if value
-	     (if value-arg
-		 (string-append " " (i18n:string-locale-upcase value-arg) "\n")
-		 " ARG\n")
-	     "\n")
+	 (cond
+	  ((and value value-arg)
+	   (string-append " " (i18n:string-locale-upcase value-arg)))
+	  (value " ARG")
+	  (else ""))
+	 "\n"
 	 (if description description "NO DESCRIPTION")
 	 (if default
 	     (if value
