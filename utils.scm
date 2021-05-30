@@ -2,7 +2,8 @@
   #:export
   (getopt-extra usage config-filename
    read-config write-config write-config-vars
-   parse-unit-as-bytes emit-bytes-as-unit parse-pairs
+   parse-unit-as-bytes emit-bytes-as-unit
+   parse-pairs parse-arg-alist emit-arg-alist
    root-user? block-device? directory? executable?
    println system->string* system->devnull*
    path mkdir-p move-file which*
@@ -258,3 +259,31 @@
      (number->string
       (floor (/ bytes (expt 2 unit-factor))))
      unit-symbol)))
+
+(define* (parse-arg-alist args-string
+   #:key
+   (pair-separator #\=)
+   (list-separator #\,))
+  (map
+   (lambda (kv-string)
+     (let* ((items (string-split kv-string pair-separator))
+	    (size (length items)))
+       (cond
+	((eqv? size 1) (car items))
+	((eqv? size 2) (cons (car items) (cadr items)))
+	(else (cons (car items)
+		    (string-join (cdr items) (string pair-separator)))))))
+   (string-split args-string #\,)))
+
+(define* (emit-arg-alist arg-alist
+   #:key
+   (pair-separator "=")
+   (list-separator ","))
+  (string-join
+   (map
+    (lambda (arg)
+      (if (pair? arg)
+       (string-append (car arg) pair-separator (cdr arg))
+       arg))
+    arg-alist)
+   list-separator))
