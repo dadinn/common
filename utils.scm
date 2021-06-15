@@ -200,11 +200,11 @@
 	  (else ""))
 	 "\n"
 	 (if description description "NO DESCRIPTION")
-	 (if default
-	     (if value
-		 (string-append " (default " default ")")
-		 " (default)")
-	     ""))))
+	 (cond
+	  ((and default value)
+	   (string-append " (default: " default ")"))
+	  (default " (default)")
+	  (else "")))))
     specs)
    "\n\n"))
 
