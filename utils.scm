@@ -5,7 +5,8 @@
    parse-unit-as-bytes emit-bytes-as-unit parse-pairs
    root-user? block-device? directory? executable?
    println system->string* system->devnull*
-   path move-file which* unique group-by)
+   path mkdir-p move-file which*
+   unique group-by)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
@@ -17,6 +18,16 @@
 
 (define* (path head #:rest tail)
   (string-join (cons head tail) "/"))
+
+(define (mkdir-p directory-path)
+  "Create directory if it does not already exist, by creating parent directories if necessary."
+  (srfi1:fold
+   (lambda (dir parent)
+     (let ((curr (if parent (path parent dir) dir)))
+       (when (not (or (string-null? curr) (file-exists? curr)))
+	 (mkdir curr))
+       curr))
+   #f (string-split directory-path #\/)))
 
 (define (unique items)
   "Return list of uinque items. Does not guarantee order to be preserved."
