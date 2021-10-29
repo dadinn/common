@@ -14,20 +14,16 @@
       (close rdr)
       res)))
 
-(define* (install-deps-base #:optional lockfile-path)
-  (when (not (and lockfile-path (file-exists? lockfile-path)))
-    (let ((missing (utils:which* "sgdisk" "partprobe" "cryptsetup" "mkfs.fat")))
-      (if (not (null? missing))
-	  (if (read-debian-version)
-	      (begin
-		(display "Installing necessary packages...")
-		(system "apt update")
-		(when (not (zero? (system "apt install -y gdisk parted cryptsetup dosfstools")))
-		 (error "Failed to install packages: gdisk, parted, cryptsetup")))
-	      (error "Necessary binaries are missing" missing))))
-    (when lockfile-path
-      (with-output-to-file lockfile-path
-	(lambda () (display ""))))))
+(define* (install-deps-base)
+  (let ((missing (utils:which* "sgdisk" "partprobe" "cryptsetup" "mkfs.fat")))
+    (if (not (null? missing))
+	(if (read-debian-version)
+	    (begin
+	      (display "Installing necessary packages...")
+	      (system "apt update")
+	      (when (not (zero? (system "apt install -y gdisk parted cryptsetup dosfstools")))
+		(error "Failed to install packages: gdisk, parted, cryptsetup")))
+	    (error "Necessary binaries are missing" missing)))))
 
 (define (install-deps-lvm)
   (let ((missing (utils:which* "pvcreate" "vgcreate" "lvcreate")))
@@ -41,36 +37,32 @@
 	 (else
 	  (error "Necessary binaries are missing" missing))))))
 
-(define* (install-deps-zfs #:optional lockfile-path)
-  (when (not (and lockfile-path (file-exists? lockfile-path)))
-    (let ((release (or (read-debian-version) 0)))
-      (cond
-       ((member release (list 8 10))
-	(call-with-input-file "/etc/apt/sources.list"
-	  (lambda (port)
-	    (let* ((pattern (make-regexp "^deb ([^ ]+) ([^ ]+) main$" regexp/newline))
-		   (match (rdelim:read-string port))
-		   (match (regexp-exec pattern match))
-		   (uri (regex:match:substring match 1))
-		   (suite (regex:match:substring match 2))
-		   (suite (string-append suite "-backports")))
-	      (with-output-to-file "/etc/apt/sources.list.d/backports.list"
-		(lambda ()
-		  (utils:println "deb" uri suite  "main" "contrib")
-		  (utils:println "deb-src" uri suite  "main" "contrib")))
-	      (system* "apt" "update"
-		       "-o" "Acquire::Check-Valid-Until=false"
-		       "-o" "Acquire::Check-Date=false")
-	      (when (not (zero? (system* "apt" "install" "-y" "-t" suite "zfs-dkms")))
-		(error "Failed to install package zfs-dkms"))))))
-       ((<= 9 release)
-	(system* "sed" "-i" "-re" "s;^deb ([^ ]+) ([^ ]+) main$;deb \\1 \\2 main contrib;"
-		 "/etc/apt/sources.list.d/base.list")
-	(system* "apt" "update")
-	(when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
-	  (error "Failed to install package zfs-dkms")))
-       (else
-	(error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))
-      (when lockfile-path
-	(with-output-to-file lockfile-path
-	  (lambda () (display "")))))))
+(define* (install-deps-zfs)
+  (let ((release (or (read-debian-version) 0)))
+    (cond
+     ((member release (list 8 10))
+      (call-with-input-file "/etc/apt/sources.list"
+	(lambda (port)
+	  (let* ((pattern (make-regexp "^deb ([^ ]+) ([^ ]+) main$" regexp/newline))
+		 (match (rdelim:read-string port))
+		 (match (regexp-exec pattern match))
+		 (uri (regex:match:substring match 1))
+		 (suite (regex:match:substring match 2))
+		 (suite (string-append suite "-backports")))
+	    (with-output-to-file "/etc/apt/sources.list.d/backports.list"
+	      (lambda ()
+		(utils:println "deb" uri suite  "main" "contrib")
+		(utils:println "deb-src" uri suite  "main" "contrib")))
+	    (system* "apt" "update"
+		     "-o" "Acquire::Check-Valid-Until=false"
+		     "-o" "Acquire::Check-Date=false")
+	    (when (not (zero? (system* "apt" "install" "-y" "-t" suite "zfs-dkms")))
+	      (error "Failed to install package zfs-dkms"))))))
+     ((<= 9 release)
+      (system* "sed" "-i" "-re" "s;^deb ([^ ]+) ([^ ]+) main$;deb \\1 \\2 main contrib;"
+	       "/etc/apt/sources.list.d/base.list")
+      (system* "apt" "update")
+      (when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
+	(error "Failed to install package zfs-dkms")))
+     (else
+      (error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))))
