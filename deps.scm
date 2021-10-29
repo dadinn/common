@@ -44,10 +44,10 @@
       (call-with-input-file "/etc/apt/sources.list"
 	(lambda (input-port)
 	  (let* ((pattern (make-regexp "^deb ([^ ]+) ([^ ]+) main$" regexp/newline))
-		 (match (rdelim:read-string input-port))
-		 (match (regexp-exec pattern match))
-		 (uri (regex:match:substring match 1))
-		 (suite (regex:match:substring match 2))
+		 (content (rdelim:read-string input-port))
+		 (matches (regexp-exec pattern content))
+		 (uri (regex:match:substring matches 1))
+		 (suite (regex:match:substring matches 2))
 		 (suite (string-append suite "-backports")))
 	    (call-with-output-file "/etc/apt/sources.list.d/backports.list"
 	      (lambda (output-port)
