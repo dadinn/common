@@ -37,7 +37,7 @@
 	 (else
 	  (error "Necessary binaries are missing" missing))))))
 
-(define* (install-deps-zfs)
+(define* (install-deps-zfs #:optional accept-license?)
   (let ((release (or (read-debian-version) 0)))
     (cond
      ((member release (list 8 10))
@@ -57,8 +57,12 @@
 	    (system* "apt" "update"
 		     "-o" "Acquire::Check-Valid-Until=false"
 		     "-o" "Acquire::Check-Date=false")
+	    (when accept-license?
+	      (setenv "DEBIAN_FRONTEND" "noninteractive"))
 	    (when (not (zero? (system* "apt" "install" "-y" "-t" suite "zfs-dkms")))
-	      (error "Failed to install package zfs-dkms"))))))
+	      (error "Failed to install package zfs-dkms"))
+	    (when accept-license?
+	      (unsetenv "DEBIAN_FRONTEND"))))))
      ((<= 9 release)
       (when (not (file-exists? "/etc/apt/sources.list.d/base.list"))
 	(utils:move-file "/etc/apt/sources.list" "/etc/apt/sources.list.d/base.list"))
@@ -77,7 +81,11 @@
       (when (file-exists? "/etc/apt/sources.list")
 	(delete-file "/etc/apt/sources.list.d/base.list"))
       (system* "apt" "update")
+      (when accept-license?
+	(setenv "DEBIAN_FRONTEND" "noninteractive"))
       (when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
-	(error "Failed to install package zfs-dkms")))
+	(error "Failed to install package zfs-dkms"))
+      (when accept-license?
+	(unsetenv "DEBIAN_FRONTEND")))
      (else
       (error "Necessary binaries are missing, and unable to install them! Please make sure ZFS kernel modules are loaded and CLI commands are available (i.e. zpool and zfs)!")))))
