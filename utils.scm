@@ -3,8 +3,9 @@
   (getopt-extra usage config-filename
    read-config write-config write-config-vars
    parse-unit-as-bytes emit-bytes-as-unit
-   parse-pairs parse-arg-alist emit-arg-alist
-   root-user? block-device? directory? executable?
+   parse-arg-alist emit-arg-alist
+   root-user? block-device?
+   executable? directory?
    println system->string* system->devnull*
    path mkdir-p move-file which*
    unique group-by)
@@ -216,10 +217,6 @@
 	  (else "")))))
     specs)
    "\n\n"))
-
-(define (parse-pairs pair-list)
-  (map (lambda (pair) (string-split pair #\:))
-       (string-split pair-list #\,)))
 
 (define unit-factors
   '(("" . 0)
