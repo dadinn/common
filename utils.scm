@@ -78,7 +78,7 @@
   (let* ((command (string-join args " "))
 	 (in (popen:open-input-pipe command))
 	 (text (rdelim:read-string in)))
-    (close in)
+    (popen:close-pipe in)
     text))
 
 (define* (system->devnull* #:rest args)
