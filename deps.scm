@@ -59,8 +59,22 @@
 	    (when (not (zero? (system* "apt" "install" "-y" "-t" suite "zfs-dkms")))
 	      (error "Failed to install package zfs-dkms"))))))
      ((<= 9 release)
-      (system* "sed" "-i" "-re" "s;^deb ([^ ]+) ([^ ]+) main$;deb \\1 \\2 main contrib;"
-	       "/etc/apt/sources.list.d/base.list")
+      (when (not (file-exists? "/etc/apt/sources.list.d/base.list"))
+	(utils:move-file "/etc/apt/sources.list" "/etc/apt/sources.list.d/base.list"))
+      (call-with-input-file "/etc/apt/sources.list.d/base.list"
+	(lambda (input-port)
+	  (let* ((pattern (make-regexp "^deb ([^ ]+) ([^ ]+) main$" regexp/newline))
+		 (content (rdelim:read-string input-port))
+		 (matches (regexp-exec pattern content))
+		 (uri (and matches (regex:match:substring matches 1)))
+		 (suite (and matches (regex:match:substring matches 2))))
+	    (when matches
+	      (call-with-output-file "/etc/apt/sources.list"
+		(lambda (output-port)
+		  (format output-port "deb ~A ~A main contrib\n" uri suite)
+		  (format output-port "deb-src ~A ~A main contrib\n" uri suite)))))))
+      (when (file-exists? "/etc/apt/sources.list")
+	(delete-file "/etc/apt/sources.list.d/base.list"))
       (system* "apt" "update")
       (when (not (zero? (system* "apt" "install" "-y" "zfs-dkms")))
 	(error "Failed to install package zfs-dkms")))
