@@ -46,13 +46,14 @@
 	  (let* ((pattern (make-regexp "^deb ([^ ]+) ([^ ]+) main$" regexp/newline))
 		 (content (rdelim:read-string input-port))
 		 (matches (regexp-exec pattern content))
-		 (uri (regex:match:substring matches 1))
-		 (suite (regex:match:substring matches 2))
+		 (uri (and matches (regex:match:substring matches 1)))
+		 (suite (and matches (regex:match:substring matches 2)))
 		 (suite (string-append suite "-backports")))
-	    (call-with-output-file "/etc/apt/sources.list.d/backports.list"
-	      (lambda (output-port)
-		(format output-port "deb ~A ~A main contrib\n" uri suite)
-		(format output-port "#deb-src ~A ~A main contrib\n" uri suite)))
+	    (when matches
+	      (call-with-output-file "/etc/apt/sources.list.d/backports.list"
+		(lambda (output-port)
+		  (format output-port "deb ~A ~A main contrib\n" uri suite)
+		  (format output-port "#deb-src ~A ~A main contrib\n" uri suite))))
 	    (system* "apt" "update"
 		     "-o" "Acquire::Check-Valid-Until=false"
 		     "-o" "Acquire::Check-Date=false")
