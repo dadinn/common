@@ -42,17 +42,17 @@
     (cond
      ((member release (list 8 10))
       (call-with-input-file "/etc/apt/sources.list"
-	(lambda (port)
+	(lambda (input-port)
 	  (let* ((pattern (make-regexp "^deb ([^ ]+) ([^ ]+) main$" regexp/newline))
-		 (match (rdelim:read-string port))
+		 (match (rdelim:read-string input-port))
 		 (match (regexp-exec pattern match))
 		 (uri (regex:match:substring match 1))
 		 (suite (regex:match:substring match 2))
 		 (suite (string-append suite "-backports")))
-	    (with-output-to-file "/etc/apt/sources.list.d/backports.list"
-	      (lambda ()
-		(utils:println "deb" uri suite  "main" "contrib")
-		(utils:println "deb-src" uri suite  "main" "contrib")))
+	    (call-with-output-file "/etc/apt/sources.list.d/backports.list"
+	      (lambda (output-port)
+		(format output-port "deb ~A ~A main contrib\n" uri suite)
+		(format output-port "deb-src ~A ~A main contrib\n" uri suite)))
 	    (system* "apt" "update"
 		     "-o" "Acquire::Check-Valid-Until=false"
 		     "-o" "Acquire::Check-Date=false")
