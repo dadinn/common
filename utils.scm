@@ -230,14 +230,13 @@
     ("Y" . 80)))
 
 (define (parse-unit-as-bytes unit-string)
-  (let ((size-matcher (regex:string-match "^([0-9]+)([KMGTPEZY]?)$" unit-string)))
-    (if size-matcher
-	(let* ((size-num (regex:match:substring size-matcher 1))
-	       (size-num (string->number size-num))
-	       (size-unit (regex:match:substring size-matcher 2))
-	       (unit-factor (assoc-ref unit-factors size-unit)))
-	  (* size-num (expt 2 unit-factor)))
-	(error "Cannot parse as bytes:" unit-string))))
+  (let* ((matches (regex:string-match "^([0-9]+)([KMGTPEZY]?)$" unit-string))
+	 (amount (and matches (regex:match:substring matches 1)))
+	 (amount (and amount (string->number amount)))
+	 (unit (and matches (regex:match:substring matches 2)))
+	 (factor (assoc-ref unit-factors unit)))
+    (if matches (* amount (expt 2 factor))
+     (error "Cannot parse as bytes:" unit-string))))
 
 (define (match-unit-factor bytes units)
   (srfi1:fold
