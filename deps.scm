@@ -52,7 +52,7 @@
 	    (call-with-output-file "/etc/apt/sources.list.d/backports.list"
 	      (lambda (output-port)
 		(format output-port "deb ~A ~A main contrib\n" uri suite)
-		(format output-port "deb-src ~A ~A main contrib\n" uri suite)))
+		(format output-port "#deb-src ~A ~A main contrib\n" uri suite)))
 	    (system* "apt" "update"
 		     "-o" "Acquire::Check-Valid-Until=false"
 		     "-o" "Acquire::Check-Date=false")
@@ -72,7 +72,7 @@
 	      (call-with-output-file "/etc/apt/sources.list"
 		(lambda (output-port)
 		  (format output-port "deb ~A ~A main contrib\n" uri suite)
-		  (format output-port "deb-src ~A ~A main contrib\n" uri suite)))))))
+		  (format output-port "#deb-src ~A ~A main contrib\n" uri suite)))))))
       (when (file-exists? "/etc/apt/sources.list")
 	(delete-file "/etc/apt/sources.list.d/base.list"))
       (system* "apt" "update")
