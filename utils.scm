@@ -32,7 +32,7 @@
     (map
      (lambda (item)
        (let* ((key (key-fn item))
-	      (acc (hash-ref result key #nil)))
+	      (acc (hash-ref result key '())))
 	 (hash-set! result key (cons item acc))))
      items)
     result))
