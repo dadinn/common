@@ -4,11 +4,11 @@
    read-config write-config write-config-vars
    parse-unit-as-bytes emit-bytes-as-unit
    parse-arg-alist emit-arg-alist
+   assoc-get hash-equal? unique group-by
+   system->string* system->devnull*
    root-user? block-device?
    executable? directory?
-   println system->string* system->devnull*
-   path mkdir-p move-file which*
-   assoc-get hash-equal? unique group-by))
+   path mkdir-p move-file which*))
 
 (use-modules
  ((srfi srfi-1) #:prefix srfi1:)
@@ -118,10 +118,6 @@ Qptional VAL-FN is used to project from each item the collected values."
          (id-match (regex:match:substring id-match 0))
          (id (string->number id-match)))
     (zero? id)))
-
-(define* (println #:rest args)
-  (display (string-join args " "))
-  (newline))
 
 (define* (system->string* #:rest args)
   (let* ((command (string-join args " "))
