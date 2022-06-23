@@ -28,7 +28,7 @@
    (lambda (dir parent)
      (let ((curr (if parent (path parent dir) dir)))
        (when (not (or (string-null? curr) (file-exists? curr)))
-	 (mkdir curr))
+         (mkdir curr))
        curr))
    #f (string-split directory-path #\/)))
 
@@ -75,12 +75,12 @@ Key is projected from each item by calling ith the KEY-FN function.
 Items hashed under the same key preserve order from the original list.
 Qptional VAL-FN is used to project from each item the collected values."
   (let* ((size (exact-integer-sqrt (length items)))
-	 (result (make-hash-table size)))
+         (result (make-hash-table size)))
     (for-each
      (lambda (item)
        (let* ((key (key-fn item))
-	      (acc (hash-ref result key '())))
-	 (hash-set! result key (cons (if val-fn (val-fn item) item) acc))))
+              (acc (hash-ref result key '())))
+         (hash-set! result key (cons (if val-fn (val-fn item) item) acc))))
      items)
     result))
 
@@ -107,14 +107,14 @@ Qptional VAL-FN is used to project from each item the collected values."
     (srfi1:fold
      (lambda (command acc)
        (if (executable-on-path? command paths)
-	   acc (cons command acc)))
+           acc (cons command acc)))
      '() commands)))
 
 (define (root-user?)
   (let* ((id-res (system->string* "id" "-u"))
-	 (id-match (regex:string-match "[0-9]+" id-res))
-	 (id-match (regex:match:substring id-match 0))
-	 (id (string->number id-match)))
+         (id-match (regex:string-match "[0-9]+" id-res))
+         (id-match (regex:match:substring id-match 0))
+         (id (string->number id-match)))
     (zero? id)))
 
 (define* (println #:rest args)
@@ -123,8 +123,8 @@ Qptional VAL-FN is used to project from each item the collected values."
 
 (define* (system->string* #:rest args)
   (let* ((command (string-join args " "))
-	 (in (popen:open-input-pipe command))
-	 (text (rdelim:read-string in)))
+         (in (popen:open-input-pipe command))
+         (text (rdelim:read-string in)))
     (popen:close-pipe in)
     text))
 
@@ -132,8 +132,8 @@ Qptional VAL-FN is used to project from each item the collected values."
   (with-error-to-file "/dev/null"
     (lambda ()
       (with-output-to-file "/dev/null"
-	(lambda ()
-	  (apply system* args))))))
+        (lambda ()
+          (apply system* args))))))
 
 (define supported-props
   (hash:alist->hash-table
@@ -153,20 +153,20 @@ Qptional VAL-FN is used to project from each item the collected values."
 
 (define* (getopt-extra args options-spec #:optional defaults-override)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
-	 (varargs (getopt:option-ref options '() #f))
-	 (result (make-hash-table (length options-spec))))
+         (varargs (getopt:option-ref options '() #f))
+         (result (make-hash-table (length options-spec))))
     (for-each
      (lambda (spec)
        (let* ((long-name (car spec))
-	      (props (cdr spec))
-	      (default (assoc-ref props 'default))
-	      (default (and default (car default)))
-	      (default
-		(if defaults-override
-		    (hash-ref defaults-override long-name default)
-		    default))
-	      (value (getopt:option-ref options long-name default)))
-	 (if value (hash-set! result long-name value))))
+              (props (cdr spec))
+              (default (assoc-ref props 'default))
+              (default (and default (car default)))
+              (default
+                (if defaults-override
+                    (hash-ref defaults-override long-name default)
+                    default))
+              (value (getopt:option-ref options long-name default)))
+         (if value (hash-set! result long-name value))))
      options-spec)
     (when varargs
       (hash-set! result '() varargs))
@@ -175,12 +175,12 @@ Qptional VAL-FN is used to project from each item the collected values."
 (define (read-config path)
   (if (file-exists? path)
       (let* ((lr-file (open-input-file path))
-	     (lr-alist
-	      (map
-	       (lambda (kv) (cons (car kv) (cadr kv)))
-	       (read lr-file))))
-	(close lr-file)
-	(hash:alist->hash-table lr-alist))
+             (lr-alist
+              (map
+               (lambda (kv) (cons (car kv) (cadr kv)))
+               (read lr-file))))
+        (close lr-file)
+        (hash:alist->hash-table lr-alist))
       (make-hash-table 0)))
 
 (define (write-config path options)
@@ -188,7 +188,7 @@ Qptional VAL-FN is used to project from each item the collected values."
     (pp:pretty-print
      (filter
       (lambda (entry)
-	(not (equal? '() (car entry))))
+        (not (equal? '() (car entry))))
       (hash-map->list list options)) lrfile)
     (close lrfile)))
 
@@ -197,20 +197,20 @@ Qptional VAL-FN is used to project from each item the collected values."
     (lambda ()
       (map
        (lambda (entry)
-	 (let* ((key (car entry))
-		(key (symbol->string key))
-		(key (i18n:string-locale-upcase key))
-		(value (cadr entry))
-		(value
-		 (if (boolean? value)
-		     (if value "1" "0")
-		     value)))
-	   (display (string-append key "=" value))
-	   (newline)))
+         (let* ((key (car entry))
+                (key (symbol->string key))
+                (key (i18n:string-locale-upcase key))
+                (value (cadr entry))
+                (value
+                 (if (boolean? value)
+                     (if value "1" "0")
+                     value)))
+           (display (string-append key "=" value))
+           (newline)))
        (filter
-	(lambda (entry)
-	  (not (equal? '() (car entry))))
-	(hash-map->list list options))))))
+        (lambda (entry)
+          (not (equal? '() (car entry))))
+        (hash-map->list list options))))))
 
 (define (move-file oldfile newfile)
   (copy-file oldfile newfile)
@@ -223,32 +223,32 @@ Qptional VAL-FN is used to project from each item the collected values."
    (map
     (lambda (spec)
       (let* ((long-name (car spec))
-	     (props (cdr spec))
-	     (props (map (lambda (spec) (cons (car spec) (cadr spec))) props))
-	     (single-char (assoc-ref props 'single-char))
-	     (description (assoc-ref props 'description))
-	     (value (assoc-ref props 'value))
-	     (value-arg (assoc-ref props 'value-arg))
-	     (default (assoc-ref props 'default))
-	     (default
-	       (if defaults-override
-		   (hash-ref defaults-override long-name default)
-		   default)))
-	(string-append
-	 (if single-char (string #\- single-char #\space) "")
-	 (string-append "--" (symbol->string long-name))
-	 (cond
-	  ((and value value-arg)
-	   (string-append " " (i18n:string-locale-upcase value-arg)))
-	  (value " ARG")
-	  (else ""))
-	 "\n"
-	 (if description description "NO DESCRIPTION")
-	 (cond
-	  ((and default value)
-	   (string-append " (default: " default ")"))
-	  (default " (default)")
-	  (else "")))))
+             (props (cdr spec))
+             (props (map (lambda (spec) (cons (car spec) (cadr spec))) props))
+             (single-char (assoc-ref props 'single-char))
+             (description (assoc-ref props 'description))
+             (value (assoc-ref props 'value))
+             (value-arg (assoc-ref props 'value-arg))
+             (default (assoc-ref props 'default))
+             (default
+               (if defaults-override
+                   (hash-ref defaults-override long-name default)
+                   default)))
+        (string-append
+         (if single-char (string #\- single-char #\space) "")
+         (string-append "--" (symbol->string long-name))
+         (cond
+          ((and value value-arg)
+           (string-append " " (i18n:string-locale-upcase value-arg)))
+          (value " ARG")
+          (else ""))
+         "\n"
+         (if description description "NO DESCRIPTION")
+         (cond
+          ((and default value)
+           (string-append " (default: " default ")"))
+          (default " (default)")
+          (else "")))))
     specs)
    "\n\n"))
 
@@ -265,10 +265,10 @@ Qptional VAL-FN is used to project from each item the collected values."
 
 (define (parse-unit-as-bytes unit-string)
   (let* ((matches (regex:string-match "^([0-9]+)([KMGTPEZY]?)$" unit-string))
-	 (amount (and matches (regex:match:substring matches 1)))
-	 (amount (and amount (string->number amount)))
-	 (unit (and matches (regex:match:substring matches 2)))
-	 (factor (assoc-ref unit-factors unit)))
+         (amount (and matches (regex:match:substring matches 1)))
+         (amount (and amount (string->number amount)))
+         (unit (and matches (regex:match:substring matches 2)))
+         (factor (assoc-ref unit-factors unit)))
     (if matches (* amount (expt 2 factor))
      (error "Cannot parse as bytes:" unit-string))))
 
@@ -277,14 +277,14 @@ Qptional VAL-FN is used to project from each item the collected values."
    (lambda (next current)
      (let ((next-factor (cdr next)))
        (if (< 0 (quotient bytes (expt 2 next-factor)))
-	   next current)))
+           next current)))
    (car units)
    (cdr units)))
 
 (define (emit-bytes-as-unit bytes)
   (let* ((unit (match-unit-factor bytes unit-factors))
-	 (unit-symbol (car unit))
-	 (unit-factor (cdr unit)))
+         (unit-symbol (car unit))
+         (unit-factor (cdr unit)))
     (string-append
      (number->string
       (floor (/ bytes (expt 2 unit-factor))))
@@ -297,12 +297,12 @@ Qptional VAL-FN is used to project from each item the collected values."
   (map
    (lambda (kv-string)
      (let* ((items (string-split kv-string pair-separator))
-	    (size (length items)))
+            (size (length items)))
        (cond
-	((eqv? size 1) (car items))
-	((eqv? size 2) (cons (car items) (cadr items)))
-	(else (cons (car items)
-		    (string-join (cdr items) (string pair-separator)))))))
+        ((eqv? size 1) (car items))
+        ((eqv? size 2) (cons (car items) (cadr items)))
+        (else (cons (car items)
+                    (string-join (cdr items) (string pair-separator)))))))
    (string-split args-string #\,)))
 
 (define* (emit-arg-alist arg-alist
