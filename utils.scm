@@ -8,7 +8,8 @@
    system->string* system->devnull*
    root-user? block-device?
    executable? directory?
-   path mkdir-p move-file which*))
+   path mkdir-p move-file
+   which* error*))
 
 (use-modules
  ((srfi srfi-1) #:prefix srfi1:)
@@ -119,6 +120,9 @@ Qptional VAL-FN is used to project from each item the collected values."
          (id-match (regex:match:substring id-match 0))
          (id (string->number id-match)))
     (zero? id)))
+
+(define* (error* template #:rest args)
+  (error (apply format #f template args)))
 
 (define* (system->string* command #:rest args)
   "Execute command on operating system's command processor
