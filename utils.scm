@@ -35,14 +35,14 @@
   "Return list of uinque items. Does not guarantee order to be preserved."
   (let* ((size (exact-integer-sqrt (length items)))
 	 (table (make-hash-table size)))
-    (map (lambda (item) (hash-set! table item #t)) items)
+    (for-each (lambda (item) (hash-set! table item #t)) items)
     (hash-map->list (lambda (key val) key) table)))
 
 (define (group-by key-fn items)
   "Aggregate items into a multi-map, keyed by the `key-fn` function called on each item."
   (let* ((size (exact-integer-sqrt (length items)))
 	 (result (make-hash-table size)))
-    (map
+    (for-each
      (lambda (item)
        (let* ((key (key-fn item))
 	      (acc (hash-ref result key '())))
@@ -121,7 +121,7 @@
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
 	 (varargs (getopt:option-ref options '() #f))
 	 (result (make-hash-table (length options-spec))))
-    (map
+    (for-each
      (lambda (spec)
        (let* ((long-name (car spec))
 	      (props (cdr spec))
