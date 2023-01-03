@@ -56,11 +56,18 @@
    (else equal? h1 h2)))
 
 (define (unique items)
-  "Return list of uinque items. Does not guarantee order to be preserved."
+  "Return list of unique items, preserving order."
   (let* ((size (exact-integer-sqrt (length items)))
-	 (table (make-hash-table size)))
-    (for-each (lambda (item) (hash-set! table item #t)) items)
-    (hash-map->list (lambda (key val) key) table)))
+         (cache (make-hash-table size)))
+    (reverse
+     (srfi1:fold
+      (lambda (e acc)
+        (cond
+         ((not (hash-ref cache e))
+          (hash-set! cache e #t)
+          (cons e acc))
+         (else acc)))
+      '() items))))
 
 (define (group-by key-fn items)
   "Aggregate items into a multi-map, keyed by the `key-fn` function called on each item."
@@ -342,3 +349,12 @@
   (test-assert "nested hash equality"
     (hash-equal? expected result))
   (test-end "hash-equal?"))
+
+(test-begin "unique")
+(test-equal "duplicates are removed"
+  '("A" "B" "C")
+  (unique '("A" "A" "B" "B" "B" "C")))
+(test-equal "preserves left-to-right order"
+  '("A" "B" "C")
+  (unique '("A" "B" "B" "A" "C" "B")))
+(test-end "unique")
