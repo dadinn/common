@@ -8,7 +8,7 @@
    executable? directory?
    println system->string* system->devnull*
    path mkdir-p move-file which*
-   hash-equal? unique group-by)
+   assoc-get hash-equal? unique group-by)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
   #:use-module ((srfi srfi-64))
   #:use-module ((ice-9 i18n) #:prefix i18n:)
@@ -31,6 +31,16 @@
 	 (mkdir curr))
        curr))
    #f (string-split directory-path #\/)))
+
+(define* (assoc-get m #:rest keys)
+  "Fetch values from nested alist or hash-table."
+  (srfi1:fold
+   (lambda (k acc)
+     (and acc
+      (if (hash-table? acc)
+          (hash-ref acc k)
+          (assoc-ref acc k))))
+   m keys))
 
 (define (hash-equal? h1 h2)
   "Recursively compare hast-table for equality."
@@ -299,6 +309,24 @@
    list-separator))
 
 ;;; TESTS
+
+(let ((test-alist '(("foo" . (("bar" . 42) ("baz" . 13))) (#:fizz . #:buzz)))
+      (test-table
+       (let ((result (make-hash-table 5))
+             (foo (make-hash-table 5)))
+         (hash-set! foo "bar" 42)
+         (hash-set! foo "baz" 13)
+         (hash-set! result "foo" foo)
+         (hash-set! result #:fizz #:buzz)
+         result)))
+  (test-begin "assoc-get")
+  (test-eqv 42 (assoc-get test-alist "foo" "bar"))
+  (test-eqv 42 (assoc-get test-table "foo" "bar"))
+  (test-eqv 13 (assoc-get test-alist "foo" "baz"))
+  (test-eqv 13 (assoc-get test-table "foo" "baz"))
+  (test-eq #:buzz (assoc-get test-alist #:fizz))
+  (test-eq #:buzz (assoc-get test-table #:fizz))
+  (test-end "assoc-get"))
 
 (let ((expected (make-hash-table 5))
       (nested (make-hash-table 5))
