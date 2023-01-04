@@ -69,15 +69,18 @@
          (else acc)))
       '() items))))
 
-(define (group-by key-fn items)
-  "Aggregate items into a multi-map, keyed by the `key-fn` function called on each item."
+(define* (group-by items key-fn #:optional val-fn)
+  "Aggregate ITEMS list into a multi-map,
+Key is projected from each item by calling ith the KEY-FN function.
+Items hashed under the same key preserve order from the original list.
+Qptional VAL-FN is used to project from each item the collected values."
   (let* ((size (exact-integer-sqrt (length items)))
 	 (result (make-hash-table size)))
     (for-each
      (lambda (item)
        (let* ((key (key-fn item))
 	      (acc (hash-ref result key '())))
-	 (hash-set! result key (cons item acc))))
+	 (hash-set! result key (cons (if val-fn (val-fn item) item) acc))))
      items)
     result))
 
@@ -317,6 +320,8 @@
 
 ;;; TESTS
 
+(set! test-log-to-file #f)
+
 (let ((test-alist '(("foo" . (("bar" . 42) ("baz" . 13))) (#:fizz . #:buzz)))
       (test-table
        (let ((result (make-hash-table 5))
@@ -358,3 +363,36 @@
   '("A" "B" "C")
   (unique '("A" "B" "B" "A" "C" "B")))
 (test-end "unique")
+
+(let ((employees
+       '(((#:name . "John") (#:city . "London"))
+         ((#:name . "John") (#:city . "London"))
+         ((#:name . "Paul") (#:city . "London"))
+         ((#:name . "Francois") (#:city . "Paris"))
+         ((#:name . "Sebastien") (#:city . "Paris"))
+         ((#:name . "Kentaro") (#:city . "Tokyo"))))
+      (expected1 (make-hash-table 5))
+      (expected2 (make-hash-table 5)))
+  (test-begin "group-by")
+  (hash-set! expected1 0 '(3 6 9 12))
+  (hash-set! expected1 1 '(4 7 10 13))
+  (hash-set! expected1 2 '(5 8 11 14))
+  (hash-set! expected2 "London" '("John" "Paul"))
+  (hash-set! expected2 "Paris" '("Francois" "Sebastien"))
+  (hash-set! expected2 "Tokyo" '("Kentaro"))
+  (test-assert "group by modulo"
+      (hash-equal?
+       (group-by
+        '(3 4 5 6 7 8 9 10 11 12 13 14)
+        (lambda (n)
+          (let ((res (modulo n 3)))
+            res)))
+       expected1))
+  (test-assert "group people's names by city"
+      (hash-equal?
+       (group-by
+        employees
+        (lambda (e) (assoc-ref e #:city))
+        (lambda (e) (assoc-ref e #:name)))
+       expected2))
+  (test-end "group-by"))
