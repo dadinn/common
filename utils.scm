@@ -8,8 +8,9 @@
    executable? directory?
    println system->string* system->devnull*
    path mkdir-p move-file which*
-   unique group-by)
+   hash-equal? unique group-by)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
+  #:use-module ((srfi srfi-64))
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
   #:use-module ((ice-9 getopt-long) #:prefix getopt:)
@@ -30,6 +31,19 @@
 	 (mkdir curr))
        curr))
    #f (string-split directory-path #\/)))
+
+(define (hash-equal? h1 h2)
+  "Recursively compare hast-table for equality."
+  (cond
+   ((and
+     (hash-table? h1)
+     (hash-table? h2))
+    (hash-fold
+     (lambda (key val1 result)
+       (let ((val2 (hash-ref h2 key)))
+         (and result (hash-equal? val1 val2))))
+     #t h1))
+   (else equal? h1 h2)))
 
 (define (unique items)
   "Return list of uinque items. Does not guarantee order to be preserved."
@@ -283,3 +297,20 @@
        arg))
     arg-alist)
    list-separator))
+
+;;; TESTS
+
+(let ((expected (make-hash-table 5))
+      (nested (make-hash-table 5))
+      (result (make-hash-table 5)))
+  (hash-set! expected "A" 13)
+  (hash-set! expected "B" 17)
+  (hash-set! expected "C" nested)
+  (hash-set! result "A" 13)
+  (hash-set! result "B" 17)
+  (hash-set! result "C" nested)
+  (hash-set! nested "D" 23)
+  (test-begin "hash-equal?")
+  (test-assert "nested hash equality"
+    (hash-equal? expected result))
+  (test-end "hash-equal?"))
