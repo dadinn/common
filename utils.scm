@@ -2,11 +2,15 @@
   #:export
   (getopt-extra usage config-filename
    read-config write-config write-config-vars
-   parse-unit-as-bytes emit-bytes-as-unit parse-pairs
-   root-user? block-device? directory? executable?
+   parse-unit-as-bytes emit-bytes-as-unit
+   parse-arg-alist emit-arg-alist
+   root-user? block-device?
+   executable? directory?
    println system->string* system->devnull*
-   path move-file which* unique group-by)
+   path mkdir-p move-file which*
+   assoc-get hash-equal? unique group-by)
   #:use-module ((srfi srfi-1) #:prefix srfi1:)
+  #:use-module ((srfi srfi-64))
   #:use-module ((ice-9 i18n) #:prefix i18n:)
   #:use-module ((ice-9 pretty-print) #:prefix pp:)
   #:use-module ((ice-9 getopt-long) #:prefix getopt:)
@@ -18,22 +22,65 @@
 (define* (path head #:rest tail)
   (string-join (cons head tail) "/"))
 
-(define (unique items)
-  "Return list of uinque items. Does not guarantee order to be preserved."
-  (let* ((size (exact-integer-sqrt (length items)))
-	 (table (make-hash-table size)))
-    (map (lambda (item) (hash-set! table item #t)) items)
-    (hash-map->list (lambda (key val) key) table)))
+(define (mkdir-p directory-path)
+  "Create directory if it does not already exist, by creating parent directories if necessary."
+  (srfi1:fold
+   (lambda (dir parent)
+     (let ((curr (if parent (path parent dir) dir)))
+       (when (not (or (string-null? curr) (file-exists? curr)))
+         (mkdir curr))
+       curr))
+   #f (string-split directory-path #\/)))
 
-(define (group-by key-fn items)
-  "Aggregate items into a multi-map, keyed by the `key-fn` function called on each item."
+(define* (assoc-get m #:rest keys)
+  "Fetch values from nested alist or hash-table."
+  (srfi1:fold
+   (lambda (k acc)
+     (and acc
+      (if (hash-table? acc)
+          (hash-ref acc k)
+          (assoc-ref acc k))))
+   m keys))
+
+(define (hash-equal? h1 h2)
+  "Recursively compare hast-table for equality."
+  (cond
+   ((and
+     (hash-table? h1)
+     (hash-table? h2))
+    (hash-fold
+     (lambda (key val1 result)
+       (let ((val2 (hash-ref h2 key)))
+         (and result (hash-equal? val1 val2))))
+     #t h1))
+   (else equal? h1 h2)))
+
+(define (unique items)
+  "Return list of unique items, preserving order."
   (let* ((size (exact-integer-sqrt (length items)))
-	 (result (make-hash-table size)))
-    (map
+         (cache (make-hash-table size)))
+    (reverse
+     (srfi1:fold
+      (lambda (e acc)
+        (cond
+         ((not (hash-ref cache e))
+          (hash-set! cache e #t)
+          (cons e acc))
+         (else acc)))
+      '() items))))
+
+(define* (group-by items key-fn #:optional val-fn)
+  "Aggregate ITEMS list into a multi-map,
+Key is projected from each item by calling ith the KEY-FN function.
+Items hashed under the same key preserve order from the original list.
+Qptional VAL-FN is used to project from each item the collected values."
+  (let* ((size (exact-integer-sqrt (length items)))
+         (result (make-hash-table size)))
+    (for-each
      (lambda (item)
        (let* ((key (key-fn item))
-	      (acc (hash-ref result key #nil)))
-	 (hash-set! result key (cons item acc))))
+              (acc (hash-ref result key '())))
+         (hash-set! result key (cons (if val-fn (val-fn item) item) acc))))
      items)
     result))
 
@@ -60,14 +107,14 @@
     (srfi1:fold
      (lambda (command acc)
        (if (executable-on-path? command paths)
-	   acc (cons command acc)))
+           acc (cons command acc)))
      '() commands)))
 
 (define (root-user?)
   (let* ((id-res (system->string* "id" "-u"))
-	 (id-match (regex:string-match "[0-9]+" id-res))
-	 (id-match (regex:match:substring id-match 0))
-	 (id (string->number id-match)))
+         (id-match (regex:string-match "[0-9]+" id-res))
+         (id-match (regex:match:substring id-match 0))
+         (id (string->number id-match)))
     (zero? id)))
 
 (define* (println #:rest args)
@@ -76,17 +123,17 @@
 
 (define* (system->string* #:rest args)
   (let* ((command (string-join args " "))
-	 (in (popen:open-input-pipe command))
-	 (text (rdelim:read-string in)))
-    (close in)
+         (in (popen:open-input-pipe command))
+         (text (rdelim:read-string in)))
+    (popen:close-pipe in)
     text))
 
 (define* (system->devnull* #:rest args)
   (with-error-to-file "/dev/null"
     (lambda ()
       (with-output-to-file "/dev/null"
-	(lambda ()
-	  (apply system* args))))))
+        (lambda ()
+          (apply system* args))))))
 
 (define supported-props
   (hash:alist->hash-table
@@ -94,46 +141,32 @@
     (lambda (k) (cons k #t))
     '(single-char value required? predicate))))
 
-(define (conform-props props)
-  (filter
-   (lambda (kv) (hash-ref supported-props (car kv)))
-   props))
-
 (define (conform-spec spec)
   (map
    (lambda (kv)
      (cons
       (car kv)
-      (conform-props (cdr kv))))
+      (filter
+       (lambda (kv) (hash-ref supported-props (car kv)))
+       (cdr kv))))
    spec))
-
-(define (read-lastrun path)
-  (if (file-exists? path)
-      (let* ((lr-file (open-input-file path))
-	     (lr-alist
-	      (map
-	       (lambda (kv) (cons (car kv) (cadr kv)))
-	       (read lr-file))))
-	(close lr-file)
-	(hash:alist->hash-table lr-alist))
-      (make-hash-table 0)))
 
 (define* (getopt-extra args options-spec #:optional defaults-override)
   (let* ((options (getopt:getopt-long args (conform-spec options-spec)))
-	 (varargs (getopt:option-ref options '() #f))
-	 (result (make-hash-table (length options-spec))))
-    (map
+         (varargs (getopt:option-ref options '() #f))
+         (result (make-hash-table (length options-spec))))
+    (for-each
      (lambda (spec)
        (let* ((long-name (car spec))
-	      (props (cdr spec))
-	      (default (assoc-ref props 'default))
-	      (default (and default (car default)))
-	      (default
-		(if defaults-override
-		    (hash-ref defaults-override long-name default)
-		    default))
-	      (value (getopt:option-ref options long-name default)))
-	 (if value (hash-set! result long-name value))))
+              (props (cdr spec))
+              (default (assoc-ref props 'default))
+              (default (and default (car default)))
+              (default
+                (if defaults-override
+                    (hash-ref defaults-override long-name default)
+                    default))
+              (value (getopt:option-ref options long-name default)))
+         (if value (hash-set! result long-name value))))
      options-spec)
     (when varargs
       (hash-set! result '() varargs))
@@ -142,12 +175,12 @@
 (define (read-config path)
   (if (file-exists? path)
       (let* ((lr-file (open-input-file path))
-	     (lr-alist
-	      (map
-	       (lambda (kv) (cons (car kv) (cadr kv)))
-	       (read lr-file))))
-	(close lr-file)
-	(hash:alist->hash-table lr-alist))
+             (lr-alist
+              (map
+               (lambda (kv) (cons (car kv) (cadr kv)))
+               (read lr-file))))
+        (close lr-file)
+        (hash:alist->hash-table lr-alist))
       (make-hash-table 0)))
 
 (define (write-config path options)
@@ -155,7 +188,7 @@
     (pp:pretty-print
      (filter
       (lambda (entry)
-	(not (equal? '() (car entry))))
+        (not (equal? '() (car entry))))
       (hash-map->list list options)) lrfile)
     (close lrfile)))
 
@@ -164,20 +197,20 @@
     (lambda ()
       (map
        (lambda (entry)
-	 (let* ((key (car entry))
-		(key (symbol->string key))
-		(key (i18n:string-locale-upcase key))
-		(value (cadr entry))
-		(value
-		 (if (boolean? value)
-		     (if value "1" "0")
-		     value)))
-	   (display (string-append key "=" value))
-	   (newline)))
+         (let* ((key (car entry))
+                (key (symbol->string key))
+                (key (i18n:string-locale-upcase key))
+                (value (cadr entry))
+                (value
+                 (if (boolean? value)
+                     (if value "1" "0")
+                     value)))
+           (display (string-append key "=" value))
+           (newline)))
        (filter
-	(lambda (entry)
-	  (not (equal? '() (car entry))))
-	(hash-map->list list options))))))
+        (lambda (entry)
+          (not (equal? '() (car entry))))
+        (hash-map->list list options))))))
 
 (define (move-file oldfile newfile)
   (copy-file oldfile newfile)
@@ -190,39 +223,34 @@
    (map
     (lambda (spec)
       (let* ((long-name (car spec))
-	     (props (cdr spec))
-	     (props (map (lambda (spec) (cons (car spec) (cadr spec))) props))
-	     (single-char (assoc-ref props 'single-char))
-	     (description (assoc-ref props 'description))
-	     (value (assoc-ref props 'value))
-	     (value-arg (assoc-ref props 'value-arg))
-	     (default (assoc-ref props 'default))
-	     (default
-	       (if defaults-override
-		   (hash-ref defaults-override long-name default)
-		   default)))
-	(string-append
-	 (if single-char
-	     (string #\- single-char))
-	 " "
-	 (string-append "--" (symbol->string long-name))
-	 (if value
-	     (if value-arg
-		 (string-append " " (i18n:string-locale-upcase value-arg) "\n")
-		 " ARG\n")
-	     "\n")
-	 (if description description "NO DESCRIPTION")
-	 (if default
-	     (if value
-		 (string-append " (default " default ")")
-		 " (default)")
-	     ""))))
+             (props (cdr spec))
+             (props (map (lambda (spec) (cons (car spec) (cadr spec))) props))
+             (single-char (assoc-ref props 'single-char))
+             (description (assoc-ref props 'description))
+             (value (assoc-ref props 'value))
+             (value-arg (assoc-ref props 'value-arg))
+             (default (assoc-ref props 'default))
+             (default
+               (if defaults-override
+                   (hash-ref defaults-override long-name default)
+                   default)))
+        (string-append
+         (if single-char (string #\- single-char #\space) "")
+         (string-append "--" (symbol->string long-name))
+         (cond
+          ((and value value-arg)
+           (string-append " " (i18n:string-locale-upcase value-arg)))
+          (value " ARG")
+          (else ""))
+         "\n"
+         (if description description "NO DESCRIPTION")
+         (cond
+          ((and default value)
+           (string-append " (default: " default ")"))
+          (default " (default)")
+          (else "")))))
     specs)
    "\n\n"))
-
-(define (parse-pairs pair-list)
-  (map (lambda (pair) (string-split pair #\:))
-       (string-split pair-list #\,)))
 
 (define unit-factors
   '(("" . 0)
@@ -236,29 +264,135 @@
     ("Y" . 80)))
 
 (define (parse-unit-as-bytes unit-string)
-  (let ((size-matcher (regex:string-match "^([0-9]+)([KMGTPEZY]?)$" unit-string)))
-    (if size-matcher
-	(let* ((size-num (regex:match:substring size-matcher 1))
-	       (size-num (string->number size-num))
-	       (size-unit (regex:match:substring size-matcher 2))
-	       (unit-factor (assoc-ref unit-factors size-unit)))
-	  (* size-num (expt 2 unit-factor)))
-	(error "Cannot parse as bytes:" unit-string))))
+  (let* ((matches (regex:string-match "^([0-9]+)([KMGTPEZY]?)$" unit-string))
+         (amount (and matches (regex:match:substring matches 1)))
+         (amount (and amount (string->number amount)))
+         (unit (and matches (regex:match:substring matches 2)))
+         (factor (assoc-ref unit-factors unit)))
+    (if matches (* amount (expt 2 factor))
+     (error "Cannot parse as bytes:" unit-string))))
 
 (define (match-unit-factor bytes units)
   (srfi1:fold
    (lambda (next current)
      (let ((next-factor (cdr next)))
        (if (< 0 (quotient bytes (expt 2 next-factor)))
-	   next current)))
+           next current)))
    (car units)
    (cdr units)))
 
 (define (emit-bytes-as-unit bytes)
   (let* ((unit (match-unit-factor bytes unit-factors))
-	 (unit-symbol (car unit))
-	 (unit-factor (cdr unit)))
+         (unit-symbol (car unit))
+         (unit-factor (cdr unit)))
     (string-append
      (number->string
       (floor (/ bytes (expt 2 unit-factor))))
      unit-symbol)))
+
+(define* (parse-arg-alist args-string
+   #:key
+   (pair-separator #\=)
+   (list-separator #\,))
+  (map
+   (lambda (kv-string)
+     (let* ((items (string-split kv-string pair-separator))
+            (size (length items)))
+       (cond
+        ((eqv? size 1) (car items))
+        ((eqv? size 2) (cons (car items) (cadr items)))
+        (else (cons (car items)
+                    (string-join (cdr items) (string pair-separator)))))))
+   (string-split args-string #\,)))
+
+(define* (emit-arg-alist arg-alist
+   #:key
+   (pair-separator "=")
+   (list-separator ","))
+  (string-join
+   (map
+    (lambda (arg)
+      (if (pair? arg)
+       (string-append (car arg) pair-separator (cdr arg))
+       arg))
+    arg-alist)
+   list-separator))
+
+;;; TESTS
+
+(set! test-log-to-file #f)
+
+(let ((test-alist '(("foo" . (("bar" . 42) ("baz" . 13))) (#:fizz . #:buzz)))
+      (test-table
+       (let ((result (make-hash-table 5))
+             (foo (make-hash-table 5)))
+         (hash-set! foo "bar" 42)
+         (hash-set! foo "baz" 13)
+         (hash-set! result "foo" foo)
+         (hash-set! result #:fizz #:buzz)
+         result)))
+  (test-begin "assoc-get")
+  (test-eqv 42 (assoc-get test-alist "foo" "bar"))
+  (test-eqv 42 (assoc-get test-table "foo" "bar"))
+  (test-eqv 13 (assoc-get test-alist "foo" "baz"))
+  (test-eqv 13 (assoc-get test-table "foo" "baz"))
+  (test-eq #:buzz (assoc-get test-alist #:fizz))
+  (test-eq #:buzz (assoc-get test-table #:fizz))
+  (test-end "assoc-get"))
+
+(let ((expected (make-hash-table 5))
+      (nested (make-hash-table 5))
+      (result (make-hash-table 5)))
+  (hash-set! expected "A" 13)
+  (hash-set! expected "B" 17)
+  (hash-set! expected "C" nested)
+  (hash-set! result "A" 13)
+  (hash-set! result "B" 17)
+  (hash-set! result "C" nested)
+  (hash-set! nested "D" 23)
+  (test-begin "hash-equal?")
+  (test-assert "nested hash equality"
+    (hash-equal? expected result))
+  (test-end "hash-equal?"))
+
+(test-begin "unique")
+(test-equal "duplicates are removed"
+  '("A" "B" "C")
+  (unique '("A" "A" "B" "B" "B" "C")))
+(test-equal "preserves left-to-right order"
+  '("A" "B" "C")
+  (unique '("A" "B" "B" "A" "C" "B")))
+(test-end "unique")
+
+(let ((employees
+       '(((#:name . "John") (#:city . "London"))
+         ((#:name . "John") (#:city . "London"))
+         ((#:name . "Paul") (#:city . "London"))
+         ((#:name . "Francois") (#:city . "Paris"))
+         ((#:name . "Sebastien") (#:city . "Paris"))
+         ((#:name . "Kentaro") (#:city . "Tokyo"))))
+      (expected1 (make-hash-table 5))
+      (expected2 (make-hash-table 5)))
+  (test-begin "group-by")
+  (hash-set! expected1 0 '(3 6 9 12))
+  (hash-set! expected1 1 '(4 7 10 13))
+  (hash-set! expected1 2 '(5 8 11 14))
+  (hash-set! expected2 "London" '("John" "Paul"))
+  (hash-set! expected2 "Paris" '("Francois" "Sebastien"))
+  (hash-set! expected2 "Tokyo" '("Kentaro"))
+  (test-assert "group by modulo"
+      (hash-equal?
+       (group-by
+        '(3 4 5 6 7 8 9 10 11 12 13 14)
+        (lambda (n)
+          (let ((res (modulo n 3)))
+            res)))
+       expected1))
+  (test-assert "group people's names by city"
+      (hash-equal?
+       (group-by
+        employees
+        (lambda (e) (assoc-ref e #:city))
+        (lambda (e) (assoc-ref e #:name)))
+       expected2))
+  (test-end "group-by"))
