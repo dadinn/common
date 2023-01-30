@@ -2,8 +2,8 @@
   #:export
   (getopt-extra usage config-filename
    read-config write-config write-config-vars
+   parse-arg-alist emit-arg-alist parse-version
    parse-unit-as-bytes emit-bytes-as-unit
-   parse-arg-alist emit-arg-alist
    assoc-get hash-equal? unique group-by
    system->string* system->devnull*
    root-user? block-device?
@@ -278,6 +278,25 @@ Qptional VAL-FN is used to project from each item the collected values."
            next current)))
    (car units)
    (cdr units)))
+
+(define (parse-version version-string)
+  (let* ((matches
+          (regex:string-match
+           "^([0-9]+)(\\.([0-9]+))?(\\.([0-9]+))?(-.*)?"
+           version-string))
+         (major-version (and matches (regex:match:substring matches 1)))
+         (major-version (and major-version (string->number major-version)))
+         (minor-version (and matches (regex:match:substring matches 3)))
+         (minor-version (and minor-version (string->number minor-version)))
+         (patch-version (and matches (regex:match:substring matches 5)))
+         (patch-version (and patch-version (string->number patch-version)))
+         (build-label (and matches (regex:match:substring matches 6)))
+         (build-label (and build-label (substring build-label 1))))
+    (and major-version
+         (list major-version
+               minor-version
+               patch-version
+               build-label))))
 
 (define (emit-bytes-as-unit bytes)
   (let* ((unit (match-unit-factor bytes unit-factors))

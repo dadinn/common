@@ -82,3 +82,23 @@
         (lambda (e) (assoc-ref e #:name)))
        expected2))
   (test-end "group-by"))
+
+(test-begin "parse-version")
+(test-equal "major version only"
+  '(5 #f #f #f)
+  (parse-version "5"))
+(test-equal "major and minor versions only"
+  '(5 10 #f #f)
+  (parse-version "5.10"))
+(test-equal "major, minor, patch versions, without release tag"
+  '(5 10 0 #f)
+  (parse-version "5.10.0"))
+(test-equal "major, minor, patch versions, with release tag"
+  '(5 10 0 "21-amd64")
+  (parse-version "5.10.0-21-amd64"))
+(test-equal "only patch version missing"
+  '(5 10 #f "foobar")
+  (parse-version "5.10-foobar"))
+(test-assert "invalid major version"
+  (not (parse-version "X.0.9-meh")))
+(test-end "parse-version")
