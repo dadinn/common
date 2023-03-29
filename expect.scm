@@ -1,6 +1,9 @@
 (define-module (common expect)
   #:export (expect expect-strings interact))
 
+(add-to-load-path
+ (dirname (dirname (current-filename))))
+
 (use-modules
  (system syntax)
  ((ice-9 threads) #:select
@@ -10,7 +13,9 @@
  ((ice-9 format) #:select (format))
  ((ice-9 readline) #:select (readline))
  ((srfi srfi-1) #:select (any))
- (srfi srfi-64))
+ (srfi srfi-64)
+ ((common utils)
+  #:select (comment)))
 
 (define (expect-select port timeout)
   (let* ((secs-usecs (gettimeofday))
@@ -219,3 +224,47 @@
   (test-assert "missing in context"
     (not (bind-locally id 'z)))
   (test-end "bind-locally"))
+
+(comment ; manual tests and macro expansions
+
+ (use-modules
+  (language tree-il)
+  (ice-9 pretty-print))
+
+ (let ((expect-char-proc #t)
+       (expect-eof-proc #t)
+       (expect-timeout-proc #t)
+       (expect-timeout #t)
+       (some-stuff 13))
+   ;; verify that default value is used
+   ;; instead of missing expect-port binding,
+   ;; while other parameters are reused/rebound.
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(expect
+         ((lambda (s c)
+            (rx:string-match "[a-zA-Z]*[0-9]+" s))
+          (display "FOO1")
+          (display "BAR1"))
+         ((lambda (s c)
+            (= 42 shit))
+          (display "FOO2")
+          (display "BAR2"))
+         ((lambda (s c)
+            (list 1 2 3))
+          => (lambda (x y z) (+ x y z))))))))
+
+ (let ((expect-char-proc
+        (lambda (c) (format #t "Read char: ~A\n" c))))
+   ;; run expect with procedural matching
+   (display "\nTESTING: expect macro with procedural matching!\n\n")
+   (call-with-input-string
+       "Some stuff here...
+MATCHING_STUFF_2023!!!"
+     (lambda (expect-port)
+       (expect
+        ((lambda (s c) (rx:string-match "\nMATCHING_STUFF_[0-9]+[^0-9]" s))
+         (display "\nMATCHED!!!\n"))))))
+
+ ) ; END OF TESTS
