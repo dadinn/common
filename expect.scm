@@ -1,9 +1,13 @@
 (define-module (common expect)
-  #:export (expect expect-chars expect-strings))
+  #:export (expect expect-chars expect-strings interact))
 
 (use-modules
- ((common utils)
-  #:select (syntax-capture))
+ ((common utils) #:select
+  (syntax-capture))
+ ((ice-9 threads) #:select
+  (cancel-thread thread-exited?
+   call-with-new-thread))
+ ((ice-9 rdelim) #:select (read-line))
  ((ice-9 regex) #:prefix rx:))
 
 (define (expect-select port timeout)
@@ -197,10 +201,68 @@
              (expect-with-bindings
               () ()
               (((let ((rx (make-regexp pattern compile-flags)))
-                   (lambda (content char)
-                     (when (and char-proc char)
-                       (char-proc char))
-                     (expect-regexec rx content (not char) exec-flags)))
+                  (lambda (content char)
+                    (when (and char-proc char)
+                      (char-proc char))
+                    (expect-regexec rx content (not char) exec-flags)))
                 body more-body ...) ...)
               (expect-port expect-eof-proc
                expect-timeout-proc expect-timeout))))))))
+
+(define-syntax interact
+  (lambda (stx)
+    (syntax-case stx ()
+      ((interact)
+       (with-syntax
+           ((expect-port
+             (or (syntax-capture #'interact 'expect-port)
+                 (syntax (current-output-port)))))
+         #'(interact expect-port expect-port)))
+      ((interact interact-output-port)
+       (with-syntax
+           ((expect-port
+             (or (syntax-capture #'interact 'expect-port)
+                 (syntax (current-output-port)))))
+         #'(interact expect-port interact-output-port)))
+      ((interact interact-input-port interact-output-port)
+       (with-syntax
+           ((expect-port
+             (or (syntax-capture #'interact 'expect-port)
+                 (syntax (current-input-port))))
+            (expect-char-proc
+             (or (syntax-capture #'interact 'expect-char-proc)
+                 (syntax display)))
+            (expect-eof-proc
+             (or (syntax-capture #'interact 'expect-eof-proc)
+                 (syntax #f)))
+            ;; always disable timeouts
+            (expect-timeout (syntax #f))
+            (expect-timeout-proc (syntax #f)))
+         #'(let* ((input-port expect-port)
+                  (output-port interact-output-port)
+                  (char-proc expect-char-proc)
+                  (interact-thread
+                   (call-with-new-thread
+                    (lambda ()
+                      (let interact-loop ((line (read-line)))
+                        (unless
+                            (or (eof-object? line)
+                                (string-ci=? line ",return"))
+                          (display line output-port)
+                          (newline output-port)
+                          (force-output output-port)
+                          (interact-loop (read-line))))
+                      (newline output-port)))))
+             (dynamic-wind
+               (const #t)
+               (lambda ()
+                 (expect-with-bindings
+                  () ()
+                  (((lambda (content char)
+                      (when (and char-proc char)
+                        (char-proc char))
+                      (thread-exited? interact-thread))))
+                  (input-port expect-eof-proc
+                   expect-timeout-proc expect-timeout)))
+               (lambda ()
+                 (cancel-thread interact-thread)))))))))
