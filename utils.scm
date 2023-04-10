@@ -119,19 +119,18 @@ Qptional VAL-FN is used to project from each item the collected values."
          (id (string->number id-match)))
     (zero? id)))
 
-(define* (system->string* #:rest args)
-  (let* ((command (string-join args " "))
-         (in (popen:open-input-pipe command))
+(define* (system->string* command #:rest args)
+  (let* ((in (apply popen:open-pipe* OPEN_READ command args))
          (text (rdelim:read-string in)))
     (popen:close-pipe in)
     text))
 
-(define* (system->devnull* #:rest args)
+(define* (system->devnull* command #:rest args)
   (with-error-to-file "/dev/null"
     (lambda ()
       (with-output-to-file "/dev/null"
         (lambda ()
-          (apply system* args))))))
+          (apply system* command args))))))
 
 (define supported-props
   (hash:alist->hash-table
