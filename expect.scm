@@ -1,12 +1,15 @@
 (define-module (common expect)
-  #:export (expect expect-chars expect-strings))
+  #:export (expect expect-chars expect-strings interact))
 
 (add-to-load-path
  (dirname (dirname (current-filename))))
 
 (use-modules
- ((common utils)
-  #:select (bind-locally))
+ ((common utils) #:select
+  (bind-locally))
+ ((ice-9 threads) #:select
+  (call-with-new-thread thread-exited?))
+ ((ice-9 readline) #:select (readline))
  ((ice-9 regex) #:prefix rx:))
 
 (define (expect-select port timeout)
@@ -180,3 +183,33 @@
                      (char-proc char))
                    (expect-regexec rx content (not char) exec-flags)))
                body more-body ...) ...)))))))
+
+(define-syntax interact
+  (lambda (stx)
+    (syntax-case stx ()
+      ((interact)
+       (with-syntax
+           ((expect-port
+             (or (bind-locally 'expect-port #'(interact))
+                 (syntax (current-output-port)))))
+         #'(interact expect-port)))
+      ((interact interact-port)
+       (with-syntax
+           ((expect (datum->syntax #'interact 'expect))
+            (expect-timeout (datum->syntax #'interact 'expect-timeout)))
+         #'(let* ((interact-thread
+                   (call-with-new-thread
+                    (lambda ()
+                      (let interact-loop ((line (readline)))
+                        (unless (string-ci=? line ",quit")
+                          (display line interact-port)
+                          (newline interact-port)
+                          (interact-loop (readline))))
+                      (newline interact-port))))
+                  ;; always disable timeouts
+                  (expect-timeout #f))
+             (let interact-loop ()
+               (expect
+                ((const #t)
+                 (unless (thread-exited? interact-thread)
+                   (interact-loop)))))))))))
