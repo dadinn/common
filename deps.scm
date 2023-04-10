@@ -1,6 +1,9 @@
 (define-module (common deps)
   #:export (install-deps-base install-deps-lvm install-deps-zfs read-debian-version))
 
+(add-to-load-path
+ (dirname (dirname (current-filename))))
+
 (use-modules
  ((common utils) #:prefix utils:)
  ((ice-9 rdelim) #:prefix rdelim:)
