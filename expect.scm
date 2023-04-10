@@ -1,5 +1,5 @@
 (define-module (common expect)
-  #:export (expect))
+  #:export (expect expect-strings))
 
 (use-modules
  (system syntax)
@@ -130,6 +130,38 @@
             () () (clause clauses ...)
             (expect-port expect-char-proc expect-eof-proc
              expect-timeout-proc expect-timeout)))))))
+
+(define (expect-regexec rx s eof? exec-flags)
+  ;; if expect-strings-exec-flags contains regexp/noteol,
+  ;; remove it for the eof test.
+  (let* ((flags (if (and eof? (logand exec-flags regexp/noteol))
+		    (logxor exec-flags regexp/noteol)
+		    exec-flags))
+	 (match (regexp-exec rx s 0 flags)))
+    (if match
+	(do ((i (- (rx:match:count match) 1) (- i 1))
+	     (result '() (cons (rx:match:substring match i) result)))
+	    ((< i 0) result))
+	#f)))
+
+(define-syntax expect-strings
+  (lambda (stx)
+    (syntax-case stx ()
+      ((expect-strings (pattern body more-body ...) ...)
+       (with-syntax ((expect-strings-compile-flags
+                      (or (bind-locally #'expect-strings 'expect-strings-compile-flags)
+                          (syntax regexp/newline)))
+                     (expect-strings-exec-flags
+                      (or (bind-locally #'expect-strings 'expect-strings-exec-flags)
+                          (syntax regexp/noteol)))
+                     (expect (datum->syntax #'expect-strings 'expect)))
+         #'(let* ((compile-flags expect-strings-compile-flags)
+                  (exec-flags expect-strings-exec-flags))
+             (expect
+              ((let ((rx (make-regexp pattern compile-flags)))
+                 (lambda (content eof?)
+                   (expect-regexec rx content eof? exec-flags)))
+               body more-body ...) ...)))))))
 
 (set! test-log-to-file #f)
 
