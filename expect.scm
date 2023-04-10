@@ -1,12 +1,13 @@
 (define-module (common expect)
-  #:export (expect expect-chars))
+  #:export (expect expect-chars expect-strings))
 
 (add-to-load-path
  (dirname (dirname (current-filename))))
 
 (use-modules
- ((common utils) #:select
-  (syntax-capture)))
+ ((common utils)
+  #:select (syntax-capture))
+ ((ice-9 regex) #:prefix rx:))
 
 (define (expect-select port timeout)
   (let* ((secs-usecs (gettimeofday))
@@ -150,3 +151,56 @@
                 body ...) ...)
             (expect-port expect-eof-proc
              expect-timeout-proc expect-timeout))))))))
+
+(define (expect-regexec rx s eof? exec-flags)
+  ;; if expect-strings-exec-flags contains regexp/noteol,
+  ;; remove it for the eof test.
+  (let* ((flags (if (and eof? (logand exec-flags regexp/noteol))
+                    (logxor exec-flags regexp/noteol)
+                    exec-flags))
+         (matches (regexp-exec rx s 0 flags)))
+    (if matches
+        (do ((i (- (rx:match:count matches) 1) (- i 1))
+             (result '() (cons (rx:match:substring matches i) result)))
+            ((< i 0) result))
+        #f)))
+
+(define-syntax expect-strings
+  (lambda (stx)
+    (syntax-case stx ()
+      ((expect-strings (pattern body more-body ...) ...)
+       (with-syntax
+           ((expect-strings-compile-flags
+             (or (syntax-capture #'expect-strings 'expect-strings-compile-flags)
+                 (syntax regexp/newline)))
+            (expect-strings-exec-flags
+             (or (syntax-capture #'expect-strings 'expect-strings-exec-flags)
+                 (syntax regexp/noteol)))
+            (expect-char-proc
+             (or (syntax-capture #'expect-strings 'expect-char-proc)
+                 (syntax #f)))
+            (expect-port
+             (or (syntax-capture #'expect-strings 'expect-port)
+                 (syntax (current-input-port))))
+            (expect-eof-proc
+             (or (syntax-capture #'expect-strings 'expect-eof-proc)
+                 (syntax #f)))
+            (expect-timeout
+             (or (syntax-capture #'expect-strings 'expect-timeout)
+                 (syntax #f)))
+            (expect-timeout-proc
+             (or (syntax-capture #'expect-strings 'expect-timeout-proc)
+                 (syntax #f))))
+         #'(let* ((compile-flags expect-strings-compile-flags)
+                  (exec-flags expect-strings-exec-flags)
+                  (char-proc expect-char-proc))
+             (expect-with-bindings
+              () ()
+              (((let ((rx (make-regexp pattern compile-flags)))
+                   (lambda (content char)
+                     (when (and char-proc char)
+                       (char-proc char))
+                     (expect-regexec rx content (not char) exec-flags)))
+                body more-body ...) ...)
+              (expect-port expect-eof-proc
+               expect-timeout-proc expect-timeout))))))))
