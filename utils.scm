@@ -120,12 +120,19 @@ Qptional VAL-FN is used to project from each item the collected values."
     (zero? id)))
 
 (define* (system->string* command #:rest args)
+  "Execute command on operating system's command processor
+and return all output sent to STDOUT as a string."
   (let* ((in (apply popen:open-pipe* OPEN_READ command args))
          (text (rdelim:read-string in)))
     (popen:close-pipe in)
     text))
 
 (define* (system->devnull* command #:rest args)
+  "Execute command on operating system's command processor
+and print all output into /dev/null.
+
+Command is formatted by replacing escape parameters in
+TEMPLATE with corresponding members from ARGS."
   (with-error-to-file "/dev/null"
     (lambda ()
       (with-output-to-file "/dev/null"
