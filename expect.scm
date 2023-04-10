@@ -320,6 +320,47 @@ including expect-char-proc.
             (and (not eof?) (list 1 2 3)))
           => (lambda (x y z) (+ x y z))))))))
 
+ (let ((expect-strings-exec-flags #f)
+       (expect-char-proc display))
+
+   (display "EXPANSION: expect-strings macro
+
+Verify that expect-strings-exec-flags and
+expect-char-proc get captured/rebound internally
+while default regexp/newline is used instead
+of missing expect-strings-compile-flags
+
+")
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(expect-strings
+         ("Welcome to GRUB[!?]+"
+          (sleep 3)
+          (display "booting GRUB... it seems!"))))))
+
+   (display "
+EXPANSION: expect-strings macro with consumer procedure syntax
+
+Verify that both lambda expressions for the string pattern matcher,
+and the consumer procuder gets evaluated and bound only once.
+
+")
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(expect-strings
+         ("\nMATCHING_([^_]+)_([0-9]+)[^0-9]" =>
+          (lambda (all id num)
+            (format #t "
+MATCHED!!!
+
+WHOLE MATCH: ~A
+
+SUB MATCH 1: ~A
+SUB MATCH 2: ~A
+" all id num))))))))
+
  (let ((expect-char-proc
         (lambda (c) (format #t "Read char: ~A\n" c))))
 
@@ -346,6 +387,32 @@ MATCHING_STUFF_2023!!!"
            ;; expect-eof-flag macro is backwards compatible with original expect macro,
            ;; captures expect-char-proc binding, and calls it with each non-EOF character read.
            (rx:string-match "\nMATCHING_STUFF_[0-9]+[^0-9]" s))
-         (display "\nMATCHED!!!\n"))))))
+         (display "\nMATCHED!!!\n")))))
+
+   ;; run expect matching with regex pattern
+   (display "\nTESTING: expect-strings macro with regex pattern matching!\n\n")
+   (call-with-input-string
+       "Some stuff here...
+MATCHING_STUFF_2023!!!"
+     (lambda (expect-port)
+       (expect-strings
+        ("\nMATCHING_STUFF_[0-9]+[^0-9]"
+         (display "\nMATCHED!!!\n")))))
+   (display "\nTESTING: expect-strings macro with regex pattern matching and post-processing of results!\n\n")
+   (call-with-input-string
+       "Some stuff here...
+MATCHING_STUFF_2023!!!"
+     (lambda (expect-port)
+       (expect-strings
+        ("\nMATCHING_([^_]+)_([0-9]+)[^0-9]" =>
+         (lambda (all id num)
+           (format #t "
+MATCHED!!!
+
+WHOLE MATCH: ~A
+
+SUB MATCH 1: ~A
+SUB MATCH 2: ~A
+" all id num)))))))
 
  ) ; END OF TESTS
