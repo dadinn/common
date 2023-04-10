@@ -231,6 +231,28 @@
   (language tree-il)
   (ice-9 pretty-print))
 
+ (let ((expect-strings-exec-flags #f))
+   ;; verify that expect-strings-exec-flags
+   ;; gets rebound internally
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(expect-strings
+         ("Welcome to GRUB[!?]+"
+          (sleep 3)
+          (display "booting GRUB... it seems!"))))))
+   (display "\n")
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(expect-strings
+        ("\nMATCHING_([^_]+)_([0-9]+)[^0-9]" =>
+         (lambda (all id num)
+           (display "\nMATCHED!!!\n\n")
+           (format #t "WHOLE MATCH: ~A\n\n" all)
+           (format #t "SUB MATCH 1: ~A\n" id)
+           (format #t "SUB MATCH 2: ~A\n" num))))))))
+
  (let ((expect-char-proc #t)
        (expect-eof-proc #t)
        (expect-timeout-proc #t)
@@ -265,6 +287,27 @@ MATCHING_STUFF_2023!!!"
      (lambda (expect-port)
        (expect
         ((lambda (s c) (rx:string-match "\nMATCHING_STUFF_[0-9]+[^0-9]" s))
-         (display "\nMATCHED!!!\n"))))))
+         (display "\nMATCHED!!!\n")))))
+   ;; run expect matching with regex pattern
+   (display "\nTESTING: expect-strings macro with regex pattern matching!\n\n")
+   (call-with-input-string
+       "Some stuff here...
+MATCHING_STUFF_2023!!!"
+     (lambda (expect-port)
+       (expect-strings
+        ("\nMATCHING_STUFF_[0-9]+[^0-9]"
+         (display "\nMATCHED!!!\n")))))
+   (display "\nTESTING: expect-strings macro with regex pattern matching and post-processing of results!\n\n")
+   (call-with-input-string
+       "Some stuff here...
+MATCHING_STUFF_2023!!!"
+     (lambda (expect-port)
+       (expect-strings
+        ("\nMATCHING_([^_]+)_([0-9]+)[^0-9]" =>
+         (lambda (all id num)
+           (display "\nMATCHED!!!\n\n")
+           (format #t "WHOLE MATCH: ~A\n\n" all)
+           (format #t "SUB MATCH 1: ~A\n" id)
+           (format #t "SUB MATCH 2: ~A\n" num)))))))
 
  ) ; END OF TESTS
