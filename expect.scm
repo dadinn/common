@@ -277,6 +277,15 @@
             (list 1 2 3))
           => (lambda (x y z) (+ x y z))))))))
 
+ (let ((expect-port #t)
+       (expect-timeout 1000))
+   ;; verify that expect-timeout is overridden,
+   ;; and expect-port is properly reused/rebound
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(interact)))))
+
  (let ((expect-char-proc
         (lambda (c) (format #t "Read char: ~A\n" c))))
    ;; run expect with procedural matching
