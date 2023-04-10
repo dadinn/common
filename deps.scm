@@ -1,8 +1,14 @@
 (define-module (common deps)
-  #:export (install-deps-base install-deps-lvm install-deps-zfs read-debian-version)
-  #:use-module ((common utils) #:prefix utils:)
-  #:use-module ((ice-9 rdelim) #:prefix rdelim:)
-  #:use-module ((ice-9 regex) #:prefix regex:))
+  #:export
+  (install-deps-base
+   install-deps-lvm
+   install-deps-zfs
+   read-debian-version))
+
+(use-modules
+ ((common utils) #:prefix utils:)
+ ((ice-9 rdelim) #:prefix rdelim:)
+ ((ice-9 regex) #:prefix regex:))
 
 (define (read-debian-version)
   (if (file-exists? "/etc/debian_version")
