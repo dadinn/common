@@ -1,11 +1,14 @@
 (define-module (common expect)
-  #:export (expect expect-strings))
+  #:export (expect expect-strings interact))
 
 (use-modules
  (system syntax)
+ ((ice-9 threads) #:select
+  (call-with-new-thread thread-exited?))
  ((ice-9 popen) #:prefix popen:)
  ((ice-9 regex) #:prefix rx:)
  ((ice-9 format) #:select (format))
+ ((ice-9 readline) #:select (readline))
  ((srfi srfi-1) #:select (any))
  (srfi srfi-64))
 
@@ -162,6 +165,33 @@
                  (lambda (content eof?)
                    (expect-regexec rx content eof? exec-flags)))
                body more-body ...) ...)))))))
+
+(define-syntax interact
+  (lambda (stx)
+    (syntax-case stx ()
+      ((interact)
+       (with-syntax ((expect-timeout (datum->syntax #'interact 'expect-timeout))
+                     (expect (datum->syntax #'interact 'expect)))
+         #'(let ((interaction
+                  (call-with-new-thread
+                   (lambda ()
+                     (let loop ((line (readline)))
+                       (cond
+                        ((equal? line "continue!")
+                         (newline port))
+                        (else
+                         (display line port)
+                         (newline port)
+                         (loop (readline))))))))
+                 ;; always disable timeouts
+                 (expect-timeout #f))
+             (let loop ()
+               (expect
+                ((const #t)
+                 (cond
+                  ((thread-exited? interaction)
+                   (format #t "\nCONTINUING...\n"))
+                  (else (loop))))))))))))
 
 (set! test-log-to-file #f)
 
