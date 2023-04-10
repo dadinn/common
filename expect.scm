@@ -1,12 +1,13 @@
 (define-module (common expect)
-  #:export (expect-chars))
+  #:export (expect-chars expect-strings))
 
 (add-to-load-path
  (dirname (dirname (current-filename))))
 
 (use-modules
  ((common utils)
-  #:select (bind-locally)))
+  #:select (bind-locally))
+ ((ice-9 regex) #:prefix rx:))
 
 (define (expect-select port timeout)
   (let* ((secs-usecs (gettimeofday))
@@ -123,3 +124,41 @@
           (#:context)
           clause more-clauses ...)))))
 
+(define (expect-regexec rx s eof? exec-flags)
+  ;; if expect-strings-exec-flags contains regexp/noteol,
+  ;; remove it for the eof test.
+  (let* ((flags (if (and eof? (logand exec-flags regexp/noteol))
+                    (logxor exec-flags regexp/noteol)
+                    exec-flags))
+         (matches (regexp-exec rx s 0 flags)))
+    (if matches
+        (do ((i (- (rx:match:count matches) 1) (- i 1))
+             (result '() (cons (rx:match:substring matches i) result)))
+            ((< i 0) result))
+        #f)))
+
+(define-syntax expect-strings
+  (lambda (stx)
+    (syntax-case stx ()
+      ((expect-strings (pattern body more-body ...) ...)
+       (with-syntax
+           ((expect-strings-compile-flags
+             (or (bind-locally 'expect-strings-compile-flags #'(expect-strings))
+                 (syntax regexp/newline)))
+            (expect-strings-exec-flags
+             (or (bind-locally 'expect-strings-exec-flags #'(expect-strings))
+                 (syntax regexp/noteol)))
+            (expect-char-proc
+             (or (bind-locally 'expect-char-proc #'(expect-strings))
+                 (syntax #f))))
+         #'(let* ((compile-flags expect-strings-compile-flags)
+                  (exec-flags expect-strings-exec-flags)
+                  (char-proc expect-char-proc))
+             (expect-chars
+              (#:context expect-strings)
+              ((let ((rx (make-regexp pattern compile-flags)))
+                 (lambda (content char)
+                   (when (and char-proc char)
+                     (char-proc char))
+                   (expect-regexec rx content (not char) exec-flags)))
+               body more-body ...) ...)))))))
