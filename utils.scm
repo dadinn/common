@@ -8,16 +8,18 @@
    executable? directory?
    println system->string* system->devnull*
    path mkdir-p move-file which*
-   assoc-get hash-equal? unique group-by)
-  #:use-module ((srfi srfi-1) #:prefix srfi1:)
-  #:use-module ((srfi srfi-64))
-  #:use-module ((ice-9 i18n) #:prefix i18n:)
-  #:use-module ((ice-9 pretty-print) #:prefix pp:)
-  #:use-module ((ice-9 getopt-long) #:prefix getopt:)
-  #:use-module ((ice-9 hash-table) #:prefix hash:)
-  #:use-module ((ice-9 rdelim) #:prefix rdelim:)
-  #:use-module ((ice-9 regex) #:prefix regex:)
-  #:use-module ((ice-9 popen) #:prefix popen:))
+   assoc-get hash-equal? unique group-by))
+
+(use-modules
+ ((srfi srfi-1) #:prefix srfi1:)
+ ((srfi srfi-64))
+ ((ice-9 i18n) #:prefix i18n:)
+ ((ice-9 pretty-print) #:prefix pp:)
+ ((ice-9 getopt-long) #:prefix getopt:)
+ ((ice-9 hash-table) #:prefix hash:)
+ ((ice-9 rdelim) #:prefix rdelim:)
+ ((ice-9 regex) #:prefix regex:)
+ ((ice-9 popen) #:prefix popen:))
 
 (define* (path head #:rest tail)
   (string-join (cons head tail) "/"))
