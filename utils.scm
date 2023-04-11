@@ -9,7 +9,7 @@
    root-user? block-device?
    executable? directory?
    path mkdir-p move-file
-   which* error*))
+   comment which* error*))
 
 (use-modules
  ((srfi srfi-1) #:prefix srfi1:)
@@ -21,6 +21,9 @@
  ((ice-9 rdelim) #:prefix rdelim:)
  ((ice-9 regex) #:prefix regex:)
  ((ice-9 popen) #:prefix popen:))
+
+(define-syntax-rule (comment . args)
+  (if #f #f))
 
 (define* (path head #:rest tail)
   "Construct URL path string out of segments, separated by /."
