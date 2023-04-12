@@ -67,10 +67,12 @@
         ((predicate-binding body ...) ...)
         () ; no more clauses
         ;; other parameters
-        (expect-port expect-char-proc expect-eof-proc
+        (expect-port expect-eof-proc
+         expect-char-proc expect-pass-char?
          expect-timeout-proc expect-timeout))
        #'(let* ((port expect-port)
                 (char-proc expect-char-proc)
+                (pass-char? expect-pass-char?)
                 (eof-proc expect-eof-proc)
                 (timeout-proc expect-timeout-proc)
                 (timeout expect-timeout)
@@ -94,10 +96,13 @@
                                   (string-append
                                    content (string char)))
                              content)))
-                   (when char-proc
+                   (when (and (not pass-char?) char-proc)
                      (char-proc char))
                    (cond
-                    ((predicate-binding next-content eof?) body ...)
+                    ((predicate-binding next-content
+                      (or (and (not pass-char?) eof?)
+                          (and (not eof?) char)))
+                     body ...)
                     ...
                     (eof? (and eof-proc (eof-proc content)))
                     (else (loop next-content)))))))))))
@@ -128,10 +133,14 @@
                  (syntax #f)))
             (expect-timeout-proc
              (or (bind-locally #'expect 'expect-timeout-proc)
+                 (syntax #f)))
+            (expect-pass-char?
+             (or (bind-locally #'expect 'expect-pass-char?)
                  (syntax #f))))
          #'(expect-with-bindings
             () () (clause clauses ...)
-            (expect-port expect-char-proc expect-eof-proc
+            (expect-port expect-eof-proc
+             expect-char-proc expect-pass-char?
              expect-timeout-proc expect-timeout)))))))
 
 (define (expect-regexec rx s eof? exec-flags)
@@ -157,6 +166,7 @@
                      (expect-strings-exec-flags
                       (or (bind-locally #'expect-strings 'expect-strings-exec-flags)
                           (syntax regexp/noteol)))
+                     (expect-pass-char? #f)
                      (expect (datum->syntax #'expect-strings 'expect)))
          #'(let* ((compile-flags expect-strings-compile-flags)
                   (exec-flags expect-strings-exec-flags))
