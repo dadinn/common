@@ -171,9 +171,10 @@
                      (expect-strings-exec-flags
                       (or (bind-locally #'expect-strings 'expect-strings-exec-flags)
                           (syntax regexp/noteol)))
-                     (expect-pass-char? #f)
+                     (expect-pass-char? (datum->syntax #'expect-strings 'expect-pass-char?))
                      (expect (datum->syntax #'expect-strings 'expect)))
-         #'(let* ((compile-flags expect-strings-compile-flags)
+         #'(let* ((expect-pass-char? #f)
+                  (compile-flags expect-strings-compile-flags)
                   (exec-flags expect-strings-exec-flags))
              (expect
               ((let ((rx (make-regexp pattern compile-flags)))
