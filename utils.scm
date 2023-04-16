@@ -9,9 +9,11 @@
    root-user? block-device?
    executable? directory?
    path mkdir-p move-file
-   comment which* error*))
+   comment which* error*
+   bind-locally))
 
 (use-modules
+ (system syntax)
  ((srfi srfi-1) #:prefix srfi1:)
  ((srfi srfi-64))
  ((ice-9 i18n) #:prefix i18n:)
@@ -24,6 +26,13 @@
 
 (define-syntax-rule (comment . args)
   (if #f #f))
+
+(define (bind-locally stx sym)
+  (srfi1:any
+   (lambda (id)
+     (and (eqv? sym (syntax->datum id))
+          (datum->syntax stx sym)))
+   (syntax-locally-bound-identifiers stx)))
 
 (define* (path head #:rest tail)
   (string-join (cons head tail) "/"))
@@ -447,3 +456,18 @@ with corresponding members from ARGS."
 (test-assert "invalid major version"
   (not (parse-version "X.0.9-meh")))
 (test-end "parse-version")
+
+(let ((id (let ((a 3) (b 7)) #'x))
+      (z 31))
+  (test-begin "bind-locally")
+  (test-assert "found in context"
+    (bound-identifier=?
+     (datum->syntax id 'a)
+     (bind-locally id 'a)))
+  (test-assert "found in context"
+    (bound-identifier=?
+     (datum->syntax id 'b)
+     (bind-locally id 'b)))
+  (test-assert "missing in context"
+    (not (bind-locally id 'z)))
+  (test-end "bind-locally"))
