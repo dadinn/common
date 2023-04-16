@@ -9,9 +9,11 @@
    root-user? block-device?
    executable? directory?
    path mkdir-p move-file
-   comment which* error*))
+   comment which* error*
+   syntax-capture))
 
 (use-modules
+ (system syntax)
  ((srfi srfi-1) #:prefix srfi1:)
  ((srfi srfi-64))
  ((ice-9 i18n) #:prefix i18n:)
@@ -24,6 +26,14 @@
 
 (define-syntax-rule (comment . args)
   (if #f #f))
+
+(define (syntax-capture stx sym)
+  "Capture identifier from syntax context, else return false if not found."
+  (srfi1:any
+   (lambda (id)
+     (and (eqv? sym (syntax->datum id))
+          (datum->syntax stx sym)))
+   (syntax-locally-bound-identifiers stx)))
 
 (define* (path head #:rest tail)
   "Construct URL path string out of segments, separated by /."

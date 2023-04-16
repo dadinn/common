@@ -102,3 +102,18 @@
 (test-assert "invalid major version"
   (not (parse-version "X.0.9-meh")))
 (test-end "parse-version")
+
+(let ((id (let ((a 3) (b 7)) #'x))
+      (z 31))
+  (test-begin "syntax-capture")
+  (test-assert "found in context"
+    (bound-identifier=?
+     (datum->syntax id 'a)
+     (syntax-capture id 'a)))
+  (test-assert "found in context"
+    (bound-identifier=?
+     (datum->syntax id 'b)
+     (syntax-capture id 'b)))
+  (test-assert "missing in context"
+    (not (syntax-capture id 'z)))
+  (test-end "syntax-capture"))
