@@ -41,10 +41,12 @@
        #'(expect-with-bindings
           (procedure-bindings
            ...
-           (matcher-binding matcher))
+           (matcher-binding matcher)
+           (consumer-binding consumer)
+           (consumer-binding (lambda (result) (apply consumer-binding result))))
           (clauses-with-bindings
            ...
-           (matcher-binding-binding => (lambda (result) (apply consumer result))))
+           (matcher-binding => consumer-binding))
           (more-clauses ...)))
 
       ((expect-with-bindings
