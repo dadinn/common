@@ -1,21 +1,12 @@
 (define-module (common expect)
-  #:export
-  (expect-timeout expect-timeout-proc
-   expect-char-proc expect-eof-proc
-   expect-strings-compile-flags
-   expect-strings-exec-flags
-   expect-port))
+  #:export (expect))
 
 (add-to-load-path
  (dirname (dirname (current-filename))))
 
-(define expect-port (current-input-port))
-(define expect-timeout #f)
-(define expect-timeout-proc #f)
-(define expect-eof-proc #f)
-(define expect-char-proc #f)
-(define expect-strings-compile-flags regexp/newline)
-(define expect-strings-exec-flags regexp/noteol)
+(use-modules
+ ((common utils)
+  #:select (bind-locally)))
 
 (define (expect-select port timeout)
   (let* ((secs-usecs (gettimeofday))
@@ -40,7 +31,8 @@
       ((expect-with-bindings
         (procedure-bindings ...)
         (clauses-with-bindings ...)
-        ((matcher => consumer) more-clauses ...))
+        ((matcher => consumer) more-clauses ...)
+        other-params)
        #'(expect-with-bindings
           (procedure-bindings
            ...
@@ -50,12 +42,14 @@
           (clauses-with-bindings
            ...
            (matcher-binding => consumer-binding))
-          (more-clauses ...)))
+          (more-clauses ...)
+          other-params))
 
       ((expect-with-bindings
         (procedure-bindings ...)
         (clauses-with-bindings ...)
-        ((matcher body ...) more-clauses ...))
+        ((matcher body ...) more-clauses ...)
+        other-params)
        #'(expect-with-bindings
           (procedure-bindings
            ...
@@ -63,48 +57,71 @@
           (clauses-with-bindings
            ...
            (matcher-binding body ...))
-          (more-clauses ...)))
+          (more-clauses ...)
+          other-params))
 
       ((expect-with-bindings
         (procedure-bindings ...)
         ((matcher-binding body ...) ...)
-        ())
-       (with-syntax ((expect-port (datum->syntax stx 'expect-port))
-                     (expect-timeout (datum->syntax stx 'expect-timeout))
-                     (expect-timeout-proc (datum->syntax stx 'expect-timeout-proc))
-                     (expect-char-proc (datum->syntax stx 'expect-char-proc))
-                     (expect-eof-proc (datum->syntax stx 'expect-eof-proc)))
-         #'(let ((input-port (or expect-port (current-input-port)))
-                 (timeout
-                  (if expect-timeout
-                      (let ((secs-usecs (gettimeofday)))
-                        (+ (car secs-usecs)
-                           expect-timeout
-                           (/ (cdr secs-usecs)
-                              ;; one million.
-                              1000000)))
-                      #f))
-                 procedure-bindings
-                 ...
-                 (content ""))
-             (let loop ()
-               (if (and expect-timeout (not (expect-select input-port timeout)))
-                   (and expect-timeout-proc (expect-timeout-proc content))
-                   (let* ((char (read-char input-port))
-                          (eof? (eof-object? char)))
-                     (when expect-char-proc
-                       (expect-char-proc char))
-                     (when (not eof?)
-                       (set! content
-                        (string-append content (string char))))
-                     (cond
-                      ((matcher-binding content eof?) body ...)
-                      ...
-                      (eof? (and expect-eof-proc (expect-eof-proc content)))
-                      (else (loop))))))))))))
+        () ; no more clauses
+        ;; other parameters
+        (expect-port expect-char-proc expect-eof-proc
+         expect-timeout-proc expect-timeout))
+       #'(let* ((input-port expect-port)
+                (char-proc expect-char-proc)
+                (eof-proc expect-eof-proc)
+                (timeout-proc expect-timeout-proc)
+                (timeout expect-timeout)
+                (timeout
+                 (if timeout
+                     (let ((secs-usecs (gettimeofday)))
+                       (+ (car secs-usecs)
+                          timeout
+                          (/ (cdr secs-usecs)
+                             ;; one million.
+                             1000000)))
+                     #f))
+                procedure-bindings ...)
+           (let loop ((content ""))
+             (if (and timeout (not (expect-select input-port timeout)))
+                 (and timeout-proc (timeout-proc content))
+                 (let* ((char (read-char input-port))
+                        (eof? (eof-object? char))
+                        (next-content
+                         (or (and (not eof?)
+                                  (string-append
+                                   content (string char)))
+                             content)))
+                   (when char-proc
+                     (char-proc char))
+                   (cond
+                    ((matcher-binding next-content eof?) body ...)
+                    ...
+                    (eof? (and eof-proc (eof-proc content)))
+                    (else (loop next-content)))))))))))
 
 (define-syntax expect
   (lambda (stx)
     (syntax-case stx ()
       ((expect clause clauses ...)
-       #'(expect-with-bindings () () (clause clauses ...))))))
+       (with-syntax
+           ((expect-port
+             (or (bind-locally #'expect 'expect-port)
+                 (syntax (current-input-port))))
+            (expect-char-proc
+             (or (bind-locally #'expect 'expect-char-proc)
+                 (syntax #f)))
+            (expect-eof-proc
+             (or (bind-locally #'expect 'expect-eof-proc)
+                 (syntax #f)))
+            (expect-timeout
+             (or (bind-locally #'expect 'expect-timeout)
+                 (syntax #f)))
+            (expect-timeout-proc
+             (or (bind-locally #'expect 'expect-timeout-proc)
+                 (syntax #f))))
+         #'(expect-with-bindings
+            () () (clause clauses ...)
+            (expect-port expect-char-proc expect-eof-proc
+             expect-timeout-proc expect-timeout)))))))
+
