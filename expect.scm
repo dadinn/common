@@ -1,5 +1,5 @@
 (define-module (common expect)
-  #:export (expect-chars expect-strings))
+  #:export (expect expect-chars expect-strings))
 
 (add-to-load-path
  (dirname (dirname (current-filename))))
@@ -123,6 +123,24 @@
        #'(expect-chars
           (#:context)
           clause more-clauses ...)))))
+
+(define-syntax expect
+  (lambda (stx)
+    (syntax-case stx ()
+      ((expect (matcher-with-eof-flag body ...) ...)
+       (with-syntax
+           ((expect-char-proc
+             (or (bind-locally 'expect-char-proc #'(expect))
+                 (syntax #f))))
+         #'(let ((char-proc expect-char-proc))
+             (expect-chars
+              (#:context expect)
+              ((let ((matcher-inner-binding matcher-with-eof-flag))
+                 (lambda (content char)
+                   (when (and char-proc char)
+                     (char-proc char))
+                   (matcher-inner-binding content (not char))))
+               body ...) ...)))))))
 
 (define (expect-regexec rx s eof? exec-flags)
   ;; if expect-strings-exec-flags contains regexp/noteol,
