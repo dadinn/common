@@ -278,6 +278,32 @@ SUB MATCH 1: ~A
 SUB MATCH 2: ~A
 " all id num))))))))
 
+ ;; verify that without expect-port binding in context
+ ;; current-input-port and current-output-port used
+ (pretty-print
+  (tree-il->scheme
+   (macroexpand
+    #'(interact))))
+
+ (let ((expect-port #t)
+       (expect-char-proc display)
+       (expect-timeout 1000)
+       (null-port (%make-void-port OPEN_WRITE)))
+   ;; verify that expect-timeout is overridden,
+   ;; and expect-port is properly captured/rebound for input-port
+   ;; and expect-char-proc is properly captured/rebound
+   (display "\nEXPANSION: interact using STDIN/STDOUT ports\n\n")
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(interact))))
+   ;; verify same as before, and null-port is captured/rebaund as output-port
+   (display "\nEXPANSION: interact using expect-port for IO\n\n")
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(interact null-port)))))
+
  (let ((expect-char-proc
         (lambda (c) (format #t "Read char: ~A\n" c))))
 
