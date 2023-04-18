@@ -1,5 +1,5 @@
 (define-module (common expect)
-  #:export (expect-chars))
+  #:export (expect expect-chars))
 
 (use-modules
  ((common utils) #:select
@@ -119,3 +119,34 @@
             (expect-port expect-eof-proc
              expect-timeout-proc expect-timeout)))))))
 
+(define-syntax expect
+  (lambda (stx)
+    (syntax-case stx ()
+      ((expect (matcher-with-eof-flag body ...) ...)
+       (with-syntax
+           ((expect-char-proc
+             (or (syntax-capture #'expect 'expect-char-proc)
+                 (syntax #f)))
+            (expect-port
+             (or (syntax-capture #'expect 'expect-port)
+                 (syntax (current-input-port))))
+            (expect-eof-proc
+             (or (syntax-capture #'expect 'expect-eof-proc)
+                 (syntax #f)))
+            (expect-timeout
+             (or (syntax-capture #'expect 'expect-timeout)
+                 (syntax #f)))
+            (expect-timeout-proc
+             (or (syntax-capture #'expect 'expect-timeout-proc)
+                 (syntax #f))))
+         #'(let* ((char-proc expect-char-proc))
+             (expect-with-bindings
+              () ()
+              (((let ((matcher-inner-binding matcher-with-eof-flag))
+                   (lambda (content char)
+                     (when (and char-proc char)
+                       (char-proc char))
+                     (matcher-inner-binding content (not char))))
+                body ...) ...)
+            (expect-port expect-eof-proc
+             expect-timeout-proc expect-timeout))))))))
