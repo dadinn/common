@@ -246,6 +246,27 @@
           (display "BAR2"))
          ((lambda (s c)
             (list 1 2 3))
+          => (lambda (x y z) (+ x y z)))))))
+
+   ;; verify that default current-input-port is
+   ;; used instead of missing expect-port binding,
+   ;; while other parameters are captured/rebound,
+   ;; including expect-char-proc.
+   (display "\nEXPANSION: bacwards-compatible expect macro\n\n")
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(expect
+         ((lambda (s eof?)
+            (rx:string-match "[a-zA-Z]*[0-9]+" s))
+          (display "FOO1")
+          (display "BAR1"))
+         ((lambda (s eof?)
+            (= 42 foobar))
+          (display "FOO2")
+          (display "BAR2"))
+         ((lambda (s eof?)
+            (and (not eof?) (list 1 2 3)))
           => (lambda (x y z) (+ x y z))))))))
 
  (let ((expect-strings-exec-flags #f)
@@ -345,6 +366,19 @@ WHOLE MATCH: ~A
 
 SUB MATCH 1: ~A
 SUB MATCH 2: ~A
-" all id num)))))))
+" all id num))))))
+
+   ;; run original backwards-compatible expect with procedural matching
+   (display "\nTESTING: backwards-compatible expect macro with procedural matching!\n\n")
+   (call-with-input-string
+       "Some stuff here...
+MATCHING_STUFF_2023!!!"
+     (lambda (expect-port)
+       (expect
+        ((lambda (s eof?)
+           ;; expect-eof-flag macro is backwards compatible with original expect macro,
+           ;; captures expect-char-proc binding, and calls it with each non-EOF character read.
+           (rx:string-match "\nMATCHING_STUFF_[0-9]+[^0-9]" s))
+         (display "\nMATCHED!!!\n"))))))
 
  ) ; END OF TESTS
