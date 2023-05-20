@@ -1,5 +1,5 @@
 (define-module (common expect)
-  #:export (expect))
+  #:export (expect-chars))
 
 (add-to-load-path
  (dirname (dirname (current-filename))))
@@ -97,22 +97,22 @@
                     ((not char) (and eof-proc (eof-proc content)))
                     (else (loop next-content)))))))))))
 
-(define-syntax expect
+(define-syntax expect-chars
   (lambda (stx)
     (syntax-case stx ()
-      ((expect clause clauses ...)
+      ((expect-chars clause clauses ...)
        (with-syntax
            ((expect-port
-             (or (bind-locally #'expect 'expect-port)
+             (or (bind-locally #'expect-chars 'expect-port)
                  (syntax (current-input-port))))
             (expect-eof-proc
-             (or (bind-locally #'expect 'expect-eof-proc)
+             (or (bind-locally #'expect-chars 'expect-eof-proc)
                  (syntax #f)))
             (expect-timeout
-             (or (bind-locally #'expect 'expect-timeout)
+             (or (bind-locally #'expect-chars 'expect-timeout)
                  (syntax #f)))
             (expect-timeout-proc
-             (or (bind-locally #'expect 'expect-timeout-proc)
+             (or (bind-locally #'expect-chars 'expect-timeout-proc)
                  (syntax #f))))
          #'(expect-with-bindings
             () () (clause clauses ...)
