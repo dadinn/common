@@ -65,10 +65,9 @@
         ((matcher-binding body ...) ...)
         () ; no more clauses
         ;; other parameters
-        (expect-port expect-char-proc expect-eof-proc
+        (expect-port expect-eof-proc
          expect-timeout-proc expect-timeout))
        #'(let* ((input-port expect-port)
-                (char-proc expect-char-proc)
                 (eof-proc expect-eof-proc)
                 (timeout-proc expect-timeout-proc)
                 (timeout expect-timeout)
@@ -86,18 +85,16 @@
              (if (and timeout (not (expect-select input-port timeout)))
                  (and timeout-proc (timeout-proc content))
                  (let* ((char (read-char input-port))
-                        (eof? (eof-object? char))
+                        (char (and (not (eof-object? char)) char))
                         (next-content
-                         (or (and (not eof?)
+                         (or (and char
                                   (string-append
                                    content (string char)))
                              content)))
-                   (when char-proc
-                     (char-proc char))
                    (cond
-                    ((matcher-binding next-content eof?) body ...)
+                    ((matcher-binding next-content char) body ...)
                     ...
-                    (eof? (and eof-proc (eof-proc content)))
+                    ((not char) (and eof-proc (eof-proc content)))
                     (else (loop next-content)))))))))))
 
 (define-syntax expect
@@ -108,9 +105,6 @@
            ((expect-port
              (or (bind-locally #'expect 'expect-port)
                  (syntax (current-input-port))))
-            (expect-char-proc
-             (or (bind-locally #'expect 'expect-char-proc)
-                 (syntax #f)))
             (expect-eof-proc
              (or (bind-locally #'expect 'expect-eof-proc)
                  (syntax #f)))
@@ -122,6 +116,6 @@
                  (syntax #f))))
          #'(expect-with-bindings
             () () (clause clauses ...)
-            (expect-port expect-char-proc expect-eof-proc
+            (expect-port expect-eof-proc
              expect-timeout-proc expect-timeout)))))))
 
