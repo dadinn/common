@@ -27,12 +27,15 @@
 (define-syntax-rule (comment . args)
   (if #f #f))
 
-(define (bind-locally stx sym)
+(define (bind-locally sym contexts)
   (srfi1:any
-   (lambda (id)
-     (and (eqv? sym (syntax->datum id))
-          (datum->syntax stx sym)))
-   (syntax-locally-bound-identifiers stx)))
+   (lambda (stx)
+     (srfi1:any
+      (lambda (id)
+        (and (eqv? sym (syntax->datum id))
+             (datum->syntax stx sym)))
+      (syntax-locally-bound-identifiers stx)))
+   contexts))
 
 (define* (path head #:rest tail)
   (string-join (cons head tail) "/"))
@@ -457,17 +460,19 @@ with corresponding members from ARGS."
   (not (parse-version "X.0.9-meh")))
 (test-end "parse-version")
 
-(let ((id (let ((a 3) (b 7)) #'x))
+(let ((id1 (let ((a 3) (b 7)) #'foo))
+      (id2 (let ((a 7) (b 127)
+                 (c 8191) (d 7)) #'bar))
       (z 31))
   (test-begin "bind-locally")
   (test-assert "found in context"
     (bound-identifier=?
-     (datum->syntax id 'a)
-     (bind-locally id 'a)))
+     (datum->syntax id1 'a)
+     (bind-locally 'a (list id1))))
   (test-assert "found in context"
     (bound-identifier=?
-     (datum->syntax id 'b)
-     (bind-locally id 'b)))
+     (datum->syntax id1 'b)
+     (bind-locally 'b (list id1))))
   (test-assert "missing in context"
-    (not (bind-locally id 'z)))
+    (not (bind-locally 'z (list id1))))
   (test-end "bind-locally"))

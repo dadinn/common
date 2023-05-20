@@ -29,11 +29,12 @@
     (syntax-case stx (=>)
 
       ((expect-with-bindings
+        (#:context context contexts ...)
         (procedure-bindings ...)
         (clauses-with-bindings ...)
-        ((matcher => consumer) more-clauses ...)
-        other-params)
+        ((matcher => consumer) more-clauses ...))
        #'(expect-with-bindings
+          (#:context context contexts ...)
           (procedure-bindings
            ...
            (matcher-binding matcher)
@@ -42,31 +43,41 @@
           (clauses-with-bindings
            ...
            (matcher-binding => consumer-binding))
-          (more-clauses ...)
-          other-params))
+          (more-clauses ...)))
 
       ((expect-with-bindings
+        (#:context context contexts ...)
         (procedure-bindings ...)
         (clauses-with-bindings ...)
-        ((matcher body ...) more-clauses ...)
-        other-params)
+        ((matcher body ...) more-clauses ...))
        #'(expect-with-bindings
+          (#:context context contexts ...)
           (procedure-bindings
            ...
            (matcher-binding matcher))
           (clauses-with-bindings
            ...
            (matcher-binding body ...))
-          (more-clauses ...)
-          other-params))
+          (more-clauses ...)))
 
       ((expect-with-bindings
+        (#:context context contexts ...)
         (procedure-bindings ...)
         ((matcher-binding body ...) ...)
-        () ; no more clauses
-        ;; other parameters
-        (expect-port expect-eof-proc
-         expect-timeout-proc expect-timeout))
+        ()) ; no more clauses
+       (with-syntax
+           ((expect-port
+             (or (bind-locally 'expect-port #'(context contexts ...))
+                 (syntax (current-input-port))))
+            (expect-eof-proc
+             (or (bind-locally 'expect-eof-proc #'(context contexts ...))
+                 (syntax #f)))
+            (expect-timeout-proc
+             (or (bind-locally 'expect-timeout-proc #'(context contexts ...))
+                 (syntax #f)))
+            (expect-timeout
+             (or (bind-locally 'expect-timeout #'(context contexts ...))
+                 (syntax #f))))
        #'(let* ((input-port expect-port)
                 (eof-proc expect-eof-proc)
                 (timeout-proc expect-timeout-proc)
@@ -95,27 +106,20 @@
                     ((matcher-binding next-content char) body ...)
                     ...
                     ((not char) (and eof-proc (eof-proc content)))
-                    (else (loop next-content)))))))))))
+                    (else (loop next-content))))))))))))
 
 (define-syntax expect-chars
   (lambda (stx)
     (syntax-case stx ()
-      ((expect-chars clause clauses ...)
-       (with-syntax
-           ((expect-port
-             (or (bind-locally #'expect-chars 'expect-port)
-                 (syntax (current-input-port))))
-            (expect-eof-proc
-             (or (bind-locally #'expect-chars 'expect-eof-proc)
-                 (syntax #f)))
-            (expect-timeout
-             (or (bind-locally #'expect-chars 'expect-timeout)
-                 (syntax #f)))
-            (expect-timeout-proc
-             (or (bind-locally #'expect-chars 'expect-timeout-proc)
-                 (syntax #f))))
-         #'(expect-with-bindings
-            () () (clause clauses ...)
-            (expect-port expect-eof-proc
-             expect-timeout-proc expect-timeout)))))))
+      ((expect-chars
+        (#:context context ...)
+        clause more-clauses ...)
+       #'(expect-with-bindings
+          (#:context expect-chars context ...)
+          () () (clause more-clauses ...)))
+      ((expect-chars
+        clause more-clauses ...)
+       #'(expect-chars
+          (#:context)
+          clause more-clauses ...)))))
 
