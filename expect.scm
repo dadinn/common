@@ -1,5 +1,5 @@
 (define-module (common expect)
-  #:export (expect))
+  #:export (expect-chars))
 
 (use-modules
  ((common utils) #:select
@@ -97,22 +97,22 @@
                     (else
                      (loop next-content)))))))))))
 
-(define-syntax expect
+(define-syntax expect-chars
   (lambda (stx)
     (syntax-case stx ()
-      ((expect clause clauses ...)
+      ((expect-chars clause clauses ...)
        (with-syntax
            ((expect-port
-             (or (syntax-capture #'expect 'expect-port)
+             (or (syntax-capture #'expect-chars 'expect-port)
                  (syntax (current-input-port))))
             (expect-eof-proc
-             (or (syntax-capture #'expect 'expect-eof-proc)
+             (or (syntax-capture #'expect-chars 'expect-eof-proc)
                  (syntax #f)))
             (expect-timeout
-             (or (syntax-capture #'expect 'expect-timeout)
+             (or (syntax-capture #'expect-chars 'expect-timeout)
                  (syntax #f)))
             (expect-timeout-proc
-             (or (syntax-capture #'expect 'expect-timeout-proc)
+             (or (syntax-capture #'expect-chars 'expect-timeout-proc)
                  (syntax #f))))
          #'(expect-with-bindings
             () () (clause clauses ...)
