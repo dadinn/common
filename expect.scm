@@ -256,3 +256,59 @@
                     (interact-loop))))
                 (input-port expect-eof-proc
                  expect-timeout-proc expect-timeout)))))))))
+
+(comment
+ ;; manual tests and macro expansions
+
+ (use-modules
+  (language tree-il)
+  (ice-9 pretty-print))
+
+ (let ((expect-eof-proc #t)
+       (expect-char-proc display)
+       (expect-timeout-proc #t)
+       (expect-timeout #t)
+       (foobar 13))
+
+   (display "
+EXPANSION: expect-chars macro
+
+Verify that default current-input-port is
+used instead of missing expect-port binding,
+expect-char-proc binding is ignored, while
+all other parameters are captured/rebound.
+
+")
+   (pretty-print
+    (tree-il->scheme
+     (macroexpand
+      #'(expect-chars
+         ((lambda (s c)
+            (rx:string-match "[a-zA-Z]*[0-9]+" s))
+          (display "FOO1")
+          (display "BAR1"))
+         ((lambda (s c)
+            (= 42 foobar))
+          (display "FOO2")
+          (display "BAR2"))
+         ((lambda (s c)
+            (list 1 2 3))
+          => (lambda (x y z) (+ x y z))))))))
+
+ (let ((expect-char-proc
+        (lambda (c) (format #t "Read char: ~A\n" c))))
+
+   (display "TESTING: expect-chars macro with procedural matching!\n\n")
+   (call-with-input-string
+       "Some stuff here...
+MATCHING_STUFF_2023!!!"
+     (lambda (expect-port)
+       (expect-chars
+        ((lambda (s c)
+           ;; displaying read characters is the responsibility of the matcher,
+           ;; as expect-char-proc parameter is not captured by expect-chars macro
+           (and c (expect-char-proc c))
+           (rx:string-match "\nMATCHING_STUFF_[0-9]+[^0-9]" s))
+         (display "\nMATCHED!!!\n"))))))
+
+ ) ; END OF TESTS
