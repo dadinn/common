@@ -22,6 +22,7 @@
  ((ice-9 popen) #:prefix popen:))
 
 (define* (path head #:rest tail)
+  "Construct URL path string out of segments, separated by /."
   (string-join (cons head tail) "/"))
 
 (define (mkdir-p directory-path)
