@@ -2,24 +2,41 @@
   #:export
   (getopt-extra usage config-filename
    read-config write-config write-config-vars
+   parse-arg-alist emit-arg-alist parse-version
    parse-unit-as-bytes emit-bytes-as-unit
-   parse-arg-alist emit-arg-alist
+   assoc-get hash-equal? unique group-by
+   system->string* system->devnull*
    root-user? block-device?
    executable? directory?
-   println system->string* system->devnull*
-   path mkdir-p move-file which*
-   assoc-get hash-equal? unique group-by)
-  #:use-module ((srfi srfi-1) #:prefix srfi1:)
-  #:use-module ((srfi srfi-64))
-  #:use-module ((ice-9 i18n) #:prefix i18n:)
-  #:use-module ((ice-9 pretty-print) #:prefix pp:)
-  #:use-module ((ice-9 getopt-long) #:prefix getopt:)
-  #:use-module ((ice-9 hash-table) #:prefix hash:)
-  #:use-module ((ice-9 rdelim) #:prefix rdelim:)
-  #:use-module ((ice-9 regex) #:prefix regex:)
-  #:use-module ((ice-9 popen) #:prefix popen:))
+   path mkdir-p move-file
+   comment which* error*
+   syntax-capture))
+
+(use-modules
+ (system syntax)
+ ((srfi srfi-1) #:prefix srfi1:)
+ ((srfi srfi-64))
+ ((ice-9 i18n) #:prefix i18n:)
+ ((ice-9 pretty-print) #:prefix pp:)
+ ((ice-9 getopt-long) #:prefix getopt:)
+ ((ice-9 hash-table) #:prefix hash:)
+ ((ice-9 rdelim) #:prefix rdelim:)
+ ((ice-9 regex) #:prefix regex:)
+ ((ice-9 popen) #:prefix popen:))
+
+(define-syntax-rule (comment . args)
+  (if #f #f))
+
+(define (syntax-capture stx sym)
+  "Capture identifier from syntax context, else return false if not found."
+  (srfi1:any
+   (lambda (id)
+     (and (eqv? sym (syntax->datum id))
+          (datum->syntax stx sym)))
+   (syntax-locally-bound-identifiers stx)))
 
 (define* (path head #:rest tail)
+  "Construct URL path string out of segments, separated by /."
   (string-join (cons head tail) "/"))
 
 (define (mkdir-p directory-path)
@@ -117,23 +134,28 @@ Qptional VAL-FN is used to project from each item the collected values."
          (id (string->number id-match)))
     (zero? id)))
 
-(define* (println #:rest args)
-  (display (string-join args " "))
-  (newline))
+(define* (error* template #:rest args)
+  (error (apply format #f template args)))
 
-(define* (system->string* #:rest args)
-  (let* ((command (string-join args " "))
-         (in (popen:open-input-pipe command))
+(define* (system->string* command #:rest args)
+  "Execute command on operating system's command processor
+and return all output sent to STDOUT as a string."
+  (let* ((in (apply popen:open-pipe* OPEN_READ command args))
          (text (rdelim:read-string in)))
     (popen:close-pipe in)
     text))
 
-(define* (system->devnull* #:rest args)
+(define* (system->devnull* command #:rest args)
+  "Execute command on operating system's command processor
+and print all output into /dev/null.
+
+Command is formatted by replacing escape parameters in
+TEMPLATE with corresponding members from ARGS."
   (with-error-to-file "/dev/null"
     (lambda ()
       (with-output-to-file "/dev/null"
         (lambda ()
-          (apply system* args))))))
+          (apply system* command args))))))
 
 (define supported-props
   (hash:alist->hash-table
@@ -281,6 +303,25 @@ Qptional VAL-FN is used to project from each item the collected values."
    (car units)
    (cdr units)))
 
+(define (parse-version version-string)
+  (let* ((matches
+          (regex:string-match
+           "^([0-9]+)(\\.([0-9]+))?(\\.([0-9]+))?(-.*)?"
+           version-string))
+         (major-version (and matches (regex:match:substring matches 1)))
+         (major-version (and major-version (string->number major-version)))
+         (minor-version (and matches (regex:match:substring matches 3)))
+         (minor-version (and minor-version (string->number minor-version)))
+         (patch-version (and matches (regex:match:substring matches 5)))
+         (patch-version (and patch-version (string->number patch-version)))
+         (build-label (and matches (regex:match:substring matches 6)))
+         (build-label (and build-label (substring build-label 1))))
+    (and major-version
+         (list major-version
+               minor-version
+               patch-version
+               build-label))))
+
 (define (emit-bytes-as-unit bytes)
   (let* ((unit (match-unit-factor bytes unit-factors))
          (unit-symbol (car unit))
@@ -317,82 +358,3 @@ Qptional VAL-FN is used to project from each item the collected values."
        arg))
     arg-alist)
    list-separator))
-
-;;; TESTS
-
-(set! test-log-to-file #f)
-
-(let ((test-alist '(("foo" . (("bar" . 42) ("baz" . 13))) (#:fizz . #:buzz)))
-      (test-table
-       (let ((result (make-hash-table 5))
-             (foo (make-hash-table 5)))
-         (hash-set! foo "bar" 42)
-         (hash-set! foo "baz" 13)
-         (hash-set! result "foo" foo)
-         (hash-set! result #:fizz #:buzz)
-         result)))
-  (test-begin "assoc-get")
-  (test-eqv 42 (assoc-get test-alist "foo" "bar"))
-  (test-eqv 42 (assoc-get test-table "foo" "bar"))
-  (test-eqv 13 (assoc-get test-alist "foo" "baz"))
-  (test-eqv 13 (assoc-get test-table "foo" "baz"))
-  (test-eq #:buzz (assoc-get test-alist #:fizz))
-  (test-eq #:buzz (assoc-get test-table #:fizz))
-  (test-end "assoc-get"))
-
-(let ((expected (make-hash-table 5))
-      (nested (make-hash-table 5))
-      (result (make-hash-table 5)))
-  (hash-set! expected "A" 13)
-  (hash-set! expected "B" 17)
-  (hash-set! expected "C" nested)
-  (hash-set! result "A" 13)
-  (hash-set! result "B" 17)
-  (hash-set! result "C" nested)
-  (hash-set! nested "D" 23)
-  (test-begin "hash-equal?")
-  (test-assert "nested hash equality"
-    (hash-equal? expected result))
-  (test-end "hash-equal?"))
-
-(test-begin "unique")
-(test-equal "duplicates are removed"
-  '("A" "B" "C")
-  (unique '("A" "A" "B" "B" "B" "C")))
-(test-equal "preserves left-to-right order"
-  '("A" "B" "C")
-  (unique '("A" "B" "B" "A" "C" "B")))
-(test-end "unique")
-
-(let ((employees
-       '(((#:name . "John") (#:city . "London"))
-         ((#:name . "John") (#:city . "London"))
-         ((#:name . "Paul") (#:city . "London"))
-         ((#:name . "Francois") (#:city . "Paris"))
-         ((#:name . "Sebastien") (#:city . "Paris"))
-         ((#:name . "Kentaro") (#:city . "Tokyo"))))
-      (expected1 (make-hash-table 5))
-      (expected2 (make-hash-table 5)))
-  (test-begin "group-by")
-  (hash-set! expected1 0 '(3 6 9 12))
-  (hash-set! expected1 1 '(4 7 10 13))
-  (hash-set! expected1 2 '(5 8 11 14))
-  (hash-set! expected2 "London" '("John" "Paul"))
-  (hash-set! expected2 "Paris" '("Francois" "Sebastien"))
-  (hash-set! expected2 "Tokyo" '("Kentaro"))
-  (test-assert "group by modulo"
-      (hash-equal?
-       (group-by
-        '(3 4 5 6 7 8 9 10 11 12 13 14)
-        (lambda (n)
-          (let ((res (modulo n 3)))
-            res)))
-       expected1))
-  (test-assert "group people's names by city"
-      (hash-equal?
-       (group-by
-        employees
-        (lambda (e) (assoc-ref e #:city))
-        (lambda (e) (assoc-ref e #:name)))
-       expected2))
-  (test-end "group-by"))
